@@ -14,11 +14,16 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
+      - name: Pull Vercel environment (preview)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        
       - name: Debug env presence
         run: |
           echo "ORG_ID set: ${{ secrets.VERCEL_ORG_ID != '' }}"
           echo "PROJECT_ID set: ${{ secrets.VERCEL_PROJECT_ID != '' }}"
           echo "TOKEN set: ${{ secrets.VERCEL_TOKEN != '' }}"
+          
       - name: Checkout repo
         uses: actions/checkout@v4
 
