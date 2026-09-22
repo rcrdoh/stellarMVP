@@ -14,6 +14,11 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
+      - name: Debug env presence
+        run: |
+          echo "ORG_ID set: ${{ secrets.VERCEL_ORG_ID != '' }}"
+          echo "PROJECT_ID set: ${{ secrets.VERCEL_PROJECT_ID != '' }}"
+          echo "TOKEN set: ${{ secrets.VERCEL_TOKEN != '' }}"
       - name: Checkout repo
         uses: actions/checkout@v4
 
