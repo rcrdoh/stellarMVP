@@ -1,8 +1,4 @@
 {
-  "functions": {
-    "api/*.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"bunVersion": "1.x"
 }

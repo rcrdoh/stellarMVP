@@ -1,0 +1,455 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Stellar MVP API",
+		"version": "0.1.0",
+		"description": "API de Stellar MVP y servicios base."
+	},
+	"servers": [
+		{
+			"url": "http://127.0.0.1:3000",
+			"description": "Development"
+		}
+	],
+	"tags": [
+		{
+			"name": "health"
+		},
+		{
+			"name": "stellar"
+		},
+		{
+			"name": "items"
+		}
+	],
+	"paths": {
+		"/openapi.json": {
+			"get": {
+				"operationId": "getOpenApiSpec",
+				"tags": ["health"],
+				"summary": "Get canonical OpenAPI spec",
+				"responses": {
+					"200": {
+						"description": "OpenAPI document",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/health/live": {
+			"get": {
+				"operationId": "getLiveHealth",
+				"tags": ["health"],
+				"summary": "Liveness probe",
+				"responses": {
+					"200": {
+						"description": "Process is alive",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/HealthResponse"
+								},
+								"examples": {
+									"ok": {
+										"value": {
+											"status": "ok",
+											"service": "stellarmvp"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/hello_api": {
+			"get": {
+				"operationId": "getStellarNetworkStatus",
+				"tags": ["stellar"],
+				"summary": "Check whether the Stellar network is configured",
+				"responses": {
+					"200": {
+						"description": "Stellar network configuration status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/StellarNetworkStatus"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/health/ready": {
+			"get": {
+				"operationId": "getReadiness",
+				"tags": ["health"],
+				"summary": "Readiness probe",
+				"responses": {
+					"200": {
+						"description": "Readiness state",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReadinessResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/items": {
+			"post": {
+				"operationId": "createItem",
+				"tags": ["items"],
+				"summary": "Create an item",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateItemRequest"
+							},
+							"examples": {
+								"demo": {
+									"value": {
+										"name": "demo",
+										"metadata": {}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created item",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Item"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid service token",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Invalid request",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
+		},
+		"/v1/items/{itemId}": {
+			"get": {
+				"operationId": "getItem",
+				"tags": ["items"],
+				"summary": "Get an item",
+				"parameters": [
+					{
+						"name": "itemId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Item",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Item"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid service token",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Resource state conflict",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
+		}
+	},
+	"components": {
+		"headers": {
+			"ErrorCodeHeader": {
+				"description": "Stable error code. Matches problem.code.",
+				"schema": {
+					"type": "string",
+					"pattern": "^SVC-[A-Z]{3,4}-[0-9]{4}$"
+				}
+			}
+		},
+		"schemas": {
+			"StellarNetworkStatus": {
+				"type": "object",
+				"required": ["stellarNetworkConfigured"],
+				"properties": {
+					"stellarNetworkConfigured": {
+						"type": "boolean"
+					}
+				},
+				"additionalProperties": false
+			},
+			"Problem": {
+				"type": "object",
+				"required": [
+					"type",
+					"title",
+					"status",
+					"code",
+					"category",
+					"detail_key",
+					"behavior",
+					"correlation",
+					"occurred_at"
+				],
+				"properties": {
+					"type": {
+						"type": "string",
+						"format": "uri"
+					},
+					"title": {
+						"type": "string"
+					},
+					"status": {
+						"type": "integer",
+						"minimum": 400,
+						"maximum": 599
+					},
+					"code": {
+						"type": "string",
+						"pattern": "^SVC-[A-Z]{3,4}-[0-9]{4}$"
+					},
+					"category": {
+						"enum": [
+							"VALIDATION",
+							"AUTHN_AUTHZ",
+							"DECISION_DENY",
+							"STATE_CONFLICT",
+							"DEPENDENCY",
+							"INDETERMINATE",
+							"INTERNAL"
+						]
+					},
+					"detail_key": {
+						"type": "string"
+					},
+					"behavior": {
+						"$ref": "#/components/schemas/ErrorBehavior"
+					},
+					"correlation": {
+						"$ref": "#/components/schemas/ErrorCorrelation"
+					},
+					"occurred_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"additionalProperties": false
+			},
+			"CreateItemRequest": {
+				"type": "object",
+				"required": ["name"],
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 120
+					},
+					"metadata": {
+						"type": "object",
+						"additionalProperties": true,
+						"default": {}
+					}
+				},
+				"additionalProperties": false
+			},
+			"ErrorBehavior": {
+				"type": "object",
+				"required": [
+					"retryable",
+					"financial_effect",
+					"human_action",
+					"agent_hint",
+					"retry_after_s"
+				],
+				"properties": {
+					"retryable": {
+						"enum": [
+							"never",
+							"safe_if_idempotent",
+							"conditional",
+							"after_reconcile"
+						]
+					},
+					"financial_effect": {
+						"enum": ["none", "unknown", "possible_partial"]
+					},
+					"human_action": {
+						"enum": ["none", "approve", "step_up", "contact_support"]
+					},
+					"agent_hint": {
+						"enum": [
+							"NONE",
+							"FIX_AND_RETRY",
+							"RETRY_WITH_BACKOFF",
+							"REQUEST_HUMAN_APPROVAL",
+							"REQUEST_STEP_UP",
+							"WAIT_FOR_SETTLEMENT",
+							"ABORT_AND_REPORT"
+						]
+					},
+					"retry_after_s": {
+						"type": ["integer", "null"],
+						"minimum": 0
+					}
+				},
+				"additionalProperties": false
+			},
+			"ErrorCorrelation": {
+				"type": "object",
+				"required": ["trace_id"],
+				"properties": {
+					"trace_id": {
+						"type": "string"
+					}
+				},
+				"additionalProperties": false
+			},
+			"HealthResponse": {
+				"type": "object",
+				"required": ["status", "service"],
+				"properties": {
+					"status": {
+						"const": "ok"
+					},
+					"service": {
+						"type": "string"
+					}
+				},
+				"additionalProperties": false
+			},
+			"Item": {
+				"type": "object",
+				"required": ["id", "name", "metadata", "created_at"],
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"name": {
+						"type": "string"
+					},
+					"metadata": {
+						"type": "object",
+						"additionalProperties": true
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"additionalProperties": false
+			},
+			"ReadinessResponse": {
+				"type": "object",
+				"required": ["status", "service", "details"],
+				"properties": {
+					"status": {
+						"enum": ["ok", "degraded"]
+					},
+					"service": {
+						"type": "string"
+					},
+					"details": {
+						"type": "object",
+						"additionalProperties": true
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		"securitySchemes": {
+			"serviceToken": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "Optional service-to-service token. Required on protected routes when SERVICE_TOKEN is configured."
+			}
+		}
+	}
+}

@@ -1,35 +1,44 @@
 {
-  "name": "stellarmvp",
-  "version": "1.0.0",
-  "description": "setting for hackaton ready",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rcrdoh/stellarMVP.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/rcrdoh/stellarMVP/issues"
-  },
-  "homepage": "https://github.com/rcrdoh/stellarMVP#readme",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.127.0",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "@stellar/stellar-sdk": "^17.1.0",
-    "dotenv": "^18.0.3",
-    "express": "^5.2.1",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.2",
-    "@vercel/node": "^13.0.2",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
-  }
+	"name": "stellarmvp",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"check": "biome check .",
+		"check-types": "tsc -p tsconfig.json --noEmit",
+		"dev": "bun --watch src/index.ts",
+		"format": "biome format --write .",
+		"spec:check": "bun run scripts/validate-openapi.ts",
+		"start": "bun src/index.ts",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@langchain/langgraph": "^1.4.17",
+		"@langchain/langgraph-checkpoint-postgres": "^1.0.5",
+		"@langchain/openai": "^1.5.13",
+		"@qdrant/js-client-rest": "^1.19.0",
+		"@scalar/fastify-api-reference": "^1.67.0",
+		"@stellar/stellar-sdk": "^17.1.0",
+		"@x402/core": "^2.27.0",
+		"@x402/evm": "^2.27.0",
+		"@x402/fastify": "^2.26.0",
+		"@x402/fetch": "^2.27.0",
+		"@x402/stellar": "^2.27.0",
+		"fastify": "^5.12.1",
+		"llamaindex": "^0.12.1",
+		"pg": "^8.23.0",
+		"scrapegraph-js": "^2.2.1",
+		"stripe": "^22.6.2",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.10",
+		"@types/bun": "^1.4.0",
+		"typescript": "^7.0.2"
+	},
+	"engines": {
+		"bun": ">=1.4.0"
+	},
+	"packageManager": "bun@1.4.0"
 }

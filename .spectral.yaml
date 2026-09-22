@@ -1,0 +1,9 @@
+extends:
+  - spectral:oas
+rules:
+  operation-operationId: error
+  operation-tags: error
+  oas3-api-servers: error
+  path-params: error
+  no-$ref-siblings: error
+

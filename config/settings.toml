@@ -1,0 +1,36 @@
+[app]
+name = "stellarmvp"
+env = "dev"
+host = "127.0.0.1"
+port = 3000
+log_level = "info"
+database_enabled = false
+bucket_enabled = false
+cache_enabled = false
+
+[profiles.dev.app]
+env = "dev"
+host = "127.0.0.1"
+port = 3000
+log_level = "debug"
+database_enabled = false
+bucket_enabled = false
+cache_enabled = false
+
+[profiles.staging.app]
+env = "staging"
+host = "0.0.0.0"
+port = 3000
+log_level = "info"
+database_enabled = true
+bucket_enabled = true
+cache_enabled = true
+
+[profiles.prod.app]
+env = "prod"
+host = "0.0.0.0"
+port = 3000
+log_level = "warn"
+database_enabled = true
+bucket_enabled = true
+cache_enabled = true

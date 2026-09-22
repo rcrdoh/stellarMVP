@@ -1,0 +1,23 @@
+services:
+  stellarmvp:
+    build:
+      context: .
+    environment:
+      APP_ENV: prod
+      HOST: 0.0.0.0
+      PORT: 3000
+      CONFIG_FILE: config/settings.toml
+    ports:
+      - "8010:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "await fetch('http://127.0.0.1:3000/v1/health/live').then((r) => { if (!r.ok) process.exit(1) })",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
