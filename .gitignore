@@ -221,5 +221,5 @@ __marimo__/
 .vercel
 .env
 .env.local
-
+node_modules
 .env*

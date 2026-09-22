@@ -1,2 +1,1 @@
-# readyHackaton
-setting for hackaton ready
+#configuration
