@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { type Env, env } from "../config/env.js";

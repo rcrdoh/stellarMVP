@@ -31,7 +31,7 @@ type ResponseObject = {
 };
 
 export async function loadSpec(): Promise<OpenApiSpec> {
-	return Bun.file(specPath).json();
+	return (await Bun.file(specPath).json()) as OpenApiSpec;
 }
 
 export function validateSpec(spec: OpenApiSpec): string[] {

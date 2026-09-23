@@ -152,3 +152,6 @@ directamente Fastify para que el detector del framework la reconozca.
 `vercel.json` selecciona Bun 1.4 y no declara un directorio de salida estatico.
 No configures `outputDirectory` como `public`: la app se despliega como una
 Function Fastify. Configura `APP_ENV=prod` en el proyecto de Vercel.
+La compilación de producción usa una declaración mínima de las APIs Bun usadas
+por la aplicación; los tipos completos de Bun siguen habilitados para desarrollo
+y pruebas.
