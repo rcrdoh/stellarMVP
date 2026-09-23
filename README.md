@@ -69,11 +69,15 @@ bun run dev
 6. Verifica health y spec:
 
 ```bash
+curl -I http://127.0.0.1:3000/
 curl http://127.0.0.1:3000/v1/health/live
 curl http://127.0.0.1:3000/v1/health/ready
 curl http://127.0.0.1:3000/openapi.json
 curl http://127.0.0.1:3000/docs
 ```
+
+La ruta raiz `/` redirige a `/docs`, donde se sirve la referencia interactiva
+del API.
 
 7. Antes de abrir cambios, ejecuta:
 

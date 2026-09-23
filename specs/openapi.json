@@ -23,6 +23,26 @@
 		}
 	],
 	"paths": {
+		"/": {
+			"get": {
+				"operationId": "redirectRootToDocs",
+				"tags": ["health"],
+				"summary": "Redirect to interactive API documentation",
+				"responses": {
+					"302": {
+						"description": "Temporary redirect to /docs",
+						"headers": {
+							"location": {
+								"schema": {
+									"type": "string",
+									"const": "/docs"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/openapi.json": {
 			"get": {
 				"operationId": "getOpenApiSpec",

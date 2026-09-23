@@ -57,6 +57,8 @@ export function registerRoutes(
 	runtimeEnv: Env = env,
 	integrations?: AppIntegrations,
 ): void {
+	app.get("/", async (_request, reply) => reply.redirect("/docs"));
+
 	app.get("/openapi.json", async () => Bun.file(openApiSpecUrl).json());
 
 	app.get("/v1/health/live", async () => ({

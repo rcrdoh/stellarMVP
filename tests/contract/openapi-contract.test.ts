@@ -30,6 +30,19 @@ describe("OpenAPI contract", () => {
 		expect(response.body).toContain("openapi.json");
 	});
 
+	test("root redirects to the interactive API documentation", async () => {
+		const spec = await loadSpec();
+		const app = await buildServer();
+		const response = await app.inject({
+			method: "GET",
+			url: "/",
+		});
+
+		expect(spec.paths?.["/"]?.get?.operationId).toBe("redirectRootToDocs");
+		expect(response.statusCode).toBe(302);
+		expect(response.headers.location).toBe("/docs");
+	});
+
 	test("health endpoint is present in spec and implementation", async () => {
 		const spec = await loadSpec();
 		const app = await buildServer();
