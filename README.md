@@ -155,3 +155,5 @@ Function Fastify. Configura `APP_ENV=prod` en el proyecto de Vercel.
 La compilación de la Function usa una declaración mínima de las APIs Bun usadas
 por la aplicación y mantiene `tsconfig.json` sin referencias a tipos globales de
 Bun. `tsconfig.check.json` activa los tipos completos de Bun para `check-types`.
+Las restricciones que protegen esta configuracion estan registradas en
+`docs/adr/0001-bun-fastify-framework.md`.
