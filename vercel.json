@@ -5,5 +5,7 @@
 		"src/index.ts": {
 			"includeFiles": "specs/openapi.json"
 		}
-	}
+	},
+	"outputDirectory": "dist"
+
 }
