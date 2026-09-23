@@ -147,8 +147,8 @@ docker compose up --build -d
 
 ## Vercel
 
-Vercel usa el preset Fastify y la entrada `src/index.ts`. `vercel.json` selecciona
-Bun 1.4 y deja el build command y el directorio de salida bajo el preset Fastify;
-no los sobrescribas en Project Settings. No agregues `functions` apuntando a esa
-entrada: esa configuracion sirve para funciones bajo `api/`. Configura
-`APP_ENV=prod` en el proyecto de Vercel.
+Vercel usa el preset Fastify y la entrada `src/index.ts`, que importa
+directamente Fastify para que el detector del framework la reconozca.
+`vercel.json` selecciona Bun 1.4 y no declara un directorio de salida estatico.
+No configures `outputDirectory` como `public`: la app se despliega como una
+Function Fastify. Configura `APP_ENV=prod` en el proyecto de Vercel.

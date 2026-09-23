@@ -17,6 +17,7 @@ export type AppIntegrations = Readonly<{
 
 type BuildServerOptions = Readonly<{
 	env?: Env;
+	fastifyFactory?: typeof Fastify;
 	integrations?: AppIntegrations;
 }>;
 
@@ -27,7 +28,8 @@ export async function buildServer(options: BuildServerOptions = {}) {
 		bucket: new LocalBucket(),
 		cache: new LocalCache(),
 	};
-	const app = Fastify({
+	const createFastify = options.fastifyFactory ?? Fastify;
+	const app = createFastify({
 		logger: {
 			level: runtimeEnv.LOG_LEVEL,
 		},

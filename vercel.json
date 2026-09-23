@@ -2,6 +2,6 @@
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"framework": "fastify",
 	"buildCommand": null,
-	"outputDirectory": "public",
+	"outputDirectory": null,
 	"bunVersion": "1.4.x"
 }
