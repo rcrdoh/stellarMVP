@@ -8,6 +8,12 @@ import { createItemSchema } from "../domain/items.js";
 import type { ItemService } from "../services/item-service.js";
 import type { AppIntegrations } from "./server.js";
 
+declare const Bun: {
+	file(path: URL | string): {
+		json(): Promise<unknown>;
+	};
+};
+
 const openApiSpecUrl = new URL("../../specs/openapi.json", import.meta.url);
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";

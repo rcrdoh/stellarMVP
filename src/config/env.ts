@@ -4,6 +4,12 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+declare const Bun: {
+	TOML: {
+		parse(input: string): unknown;
+	};
+};
+
 export const envSchema = z.object({
 	APP_NAME: z.string().min(1).default("stellarmvp"),
 	APP_ENV: z.enum(["dev", "staging", "prod"]).default("dev"),
