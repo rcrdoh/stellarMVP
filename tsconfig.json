@@ -10,8 +10,8 @@
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"skipLibCheck": true,
-		"types": ["bun"],
+		"types": [],
 		"noEmit": true
 	},
-	"include": ["src/**/*.ts", "tests/**/*.ts"]
+	"include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

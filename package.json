@@ -6,7 +6,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"check": "biome check .",
-		"check-types": "tsc -p tsconfig.json --noEmit",
+		"check-types": "tsc -p tsconfig.check.json",
 		"dev": "bun --watch src/index.ts",
 		"format": "biome format --write .",
 		"spec:check": "bun run scripts/validate-openapi.ts",
