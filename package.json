@@ -20,6 +20,7 @@
 		"@qdrant/js-client-rest": "^1.19.0",
 		"@scalar/fastify-api-reference": "^1.67.0",
 		"@stellar/stellar-sdk": "^17.1.0",
+		"@types/bun": "1.4.0",
 		"@x402/core": "^2.27.0",
 		"@x402/evm": "^2.27.0",
 		"@x402/fastify": "^2.26.0",
@@ -34,7 +35,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.10",
-		"@types/bun": "^1.4.0",
 		"typescript": "^7.0.2"
 	},
 	"engines": {
