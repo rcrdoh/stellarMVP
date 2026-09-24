@@ -7,10 +7,11 @@ ingesta, pagos y workers todavía no está implementada.
 
 - **Orquestación:** LangGraph.js para modelar recuperación, scraping, extracción,
   generación y reintentos como pasos con estado persistente. No añadir Google ADK
-  en paralelo: ambos cubren orquestación; LangGraph se elige por su persistencia
-  con Postgres y por encajar con el servicio TypeScript actual. Jev es un modelo
-  para decisiones tipadas (por ejemplo, clasificar o enrutar), no un sustituto
-  del LLM generativo ni del grafo. Dejarlo como posible adaptador futuro.
+  en paralelo: ambos cubren orquestación. Para estado del Shopping Agent, las
+  pautas obligatorias eligen MongoDB y su checkpointer de LangGraph; PostgreSQL
+  queda para catálogo y registros transaccionales. Jev es un modelo para
+  decisiones tipadas (por ejemplo, clasificar o enrutar), no un sustituto del
+  LLM generativo ni del grafo. Dejarlo como posible adaptador futuro.
 - **LLM:** usar `LLM_API_KEY` y configuración de proveedor/modelo/base URL. El
   adaptador `@langchain/openai` puede atender endpoints compatibles con la API
   OpenAI; otros proveedores que no sean compatibles requerirán su adaptador.
@@ -26,20 +27,24 @@ ingesta, pagos y workers todavía no está implementada.
   puntos con metadatos de origen, URL canónica, fecha, tenant y documento para
   poder filtrar y reconstruir citas. Evaluar recuperación híbrida semántica y
   léxica con datos reales antes de fijarla como requisito.
-- **Estado durable:** PostgreSQL para checkpoints de LangGraph y registro/cola
-  de trabajos; Qdrant no reemplaza la base relacional ni guarda el estado de
-  ejecución del grafo.
-- **Despliegue:** conservar Fastify/API en Vercel y ejecutar scraping/ingesta en
-  un worker Docker separado. La API debe aceptar trabajos y devolver su estado;
-  no mantener una petición HTTP abierta hasta que termine el scraping.
+- **Datos:** MongoDB para checkpoint/estado del agente; PostgreSQL para catálogo
+  transaccional y órdenes; Qdrant solo para índice vectorial de descubrimiento.
+  Los trabajos de ingesta son asíncronos y deben tener persistencia e
+  idempotencia, separadas del checkpoint conversacional.
+- **Despliegue:** Fastify/API se despliega en Render; ejecutar scraping/ingesta
+  en un worker Docker separado. La API debe aceptar trabajos y devolver su
+  estado; no mantener una petición HTTP abierta hasta que termine el scraping.
 
 ## Dependencias añadidas
 
 La instalación de paquetes prepara el entorno, pero no activa integraciones ni
 cambia el comportamiento de la API:
 
-- LangGraph.js y su checkpointer PostgreSQL: `@langchain/langgraph`,
-  `@langchain/langgraph-checkpoint-postgres`.
+- LangGraph.js y su checkpointer PostgreSQL actual: `@langchain/langgraph`,
+  `@langchain/langgraph-checkpoint-postgres`. El checkpointer PostgreSQL está
+  instalado, pero el diseño de compra por agentes requiere evaluar y añadir
+  `@langchain/langgraph-checkpoint-mongodb` y `mongodb`; no intercambiar stores
+  sin una decisión explícita.
 - Cliente LLM: `@langchain/openai`.
 - Ingesta y vector store: `llamaindex`, `@qdrant/js-client-rest`.
 - Scraping gestionado: `scrapegraph-js`.
@@ -78,13 +83,15 @@ No cargar secretos de producción por defecto. Los pagos mainnet requieren una
 decisión operativa explícita, límites de gasto, control de claves fuera del
 proceso web y pruebas de settlement satisfactorias en testnet.
 
-## UCP
+## UCP y comercio asistido
 
-UCP se mantiene como decisión de arquitectura/documentación, no como dependencia
-ni endpoint inicial. UCP cubre descubrimiento de capacidades comerciales,
-carrito, checkout, órdenes y handlers de pago; x402 cubre acceso/pago HTTP por
-recurso. Implementar UCP cuando StellarMVP tenga un flujo real de compra de
-productos o servicios con checkout. No usarlo solo para cobrar consultas RAG.
+El diseño de compra por agentes, que sigue obligatoriamente
+`pautas de diseño.md`, está en `docs/agentic-commerce-design.md`. UCP/Shopify
+Global Catalog es candidato para descubrimiento de productos y checkout; x402
+cubre pago HTTP por recurso y no sustituye carrito, orden, devolución o
+fulfillment. Esta selección es propuesta: no hay aún endpoints de comercio ni
+integración activa. No implementar pagos reales hasta cerrar merchant, moneda,
+settlement y políticas de autorización.
 
 ## Configuración prevista
 
@@ -98,7 +105,8 @@ la configuración tipada:
 | `LLM_MODEL` | Modelo de generación |
 | `LLM_API_BASE_URL` | URL para proveedores compatibles, opcional |
 | `SGAI_API_KEY` | Acceso a ScrapeGraphAI gestionado |
-| `DATABASE_URL` | PostgreSQL, checkpoints y trabajos |
+| `MONGODB_URI` | Checkpoints y estado durable del Shopping Agent |
+| `DATABASE_URL` | PostgreSQL para catálogo/órdenes y datos transaccionales |
 | `QDRANT_URL` / `QDRANT_API_KEY` | Qdrant local o gestionado |
 | `X402_NETWORK` | Red de prueba habilitada, por defecto testnet |
 | `X402_FACILITATOR_URL` | Facilitador de la red elegida |
@@ -115,8 +123,9 @@ ninguno de esos secretos.
   pregunta; actualizar `specs/openapi.json` antes de exponer las rutas.
 - Implementar persistencia de fuentes/documentos y ejecución durable con
   idempotencia, reintentos limitados y política de retención.
-- Crear worker Docker, health checks y servicios locales PostgreSQL/Qdrant; no
-  asumir que la memoria local de Vercel sirve para persistencia.
+- Crear worker Docker, health checks y servicios locales MongoDB,
+  PostgreSQL/Qdrant; no asumir que el filesystem del contenedor Render sirve
+  para persistencia durable.
 - Implementar extracción mediante ScrapeGraphAI, límites de páginas/coste,
   canonicalización, deduplicación y procedencia de cada fragmento.
 - Proteger el scraping frente a SSRF: bloquear loopback, redes privadas y

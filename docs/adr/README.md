@@ -16,3 +16,5 @@ arquitectura.
   del despliegue Docker en Render (con soporte Vercel heredado).
 - `0002-error-taxonomy.md`: contrato publico de errores RFC 9457.
 - `0003-service-token-for-protected-routes.md`: token de servicio opcional para rutas protegidas.
+- `0004-agentic-commerce.md`: propuesta para habilitar comercio asistido por
+  agentes, pendiente de decisiones de producto y validación sandbox.
