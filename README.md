@@ -145,19 +145,16 @@ Manual: `docs/docker.md`.
 docker compose up --build -d
 ```
 
-## Vercel
+## Render
 
-Vercel usa el preset Fastify y la entrada `src/index.ts`, que importa
-directamente Fastify para que el detector del framework la reconozca y exporta la
-instancia como `export default app`. Ese export es obligatorio: Vercel lo usa
-como handler de la Function; sin el, todas las rutas responden `404` aunque el
-build pase. `app.listen(...)` solo se ejecuta cuando `VERCEL` no esta definida,
-de modo que local y Docker siguen atendiendo un puerto.
-`vercel.json` selecciona Bun 1.4 y no declara un directorio de salida estatico.
-No configures `outputDirectory` como `public`: la app se despliega como una
-Function Fastify. Configura `APP_ENV=prod` en el proyecto de Vercel.
-La compilación de la Function usa una declaración mínima de las APIs Bun usadas
-por la aplicación y mantiene `tsconfig.json` sin referencias a tipos globales de
-Bun. `tsconfig.check.json` activa los tipos completos de Bun para `check-types`.
-Las restricciones que protegen esta configuracion estan registradas en
-`docs/adr/0001-bun-fastify-framework.md`.
+El despliegue activo usa Render con el `Dockerfile` de la raíz. La imagen instala
+dependencias de producción con Bun 1.4 y arranca mediante `bun run start`. El
+contenedor escucha en `0.0.0.0:3000`; si cambias el puerto en el Dockerfile,
+sincroniza `PORT`, `EXPOSE` y la configuración del servicio en Render.
+
+No hay `render.yaml`: la rama, variables, health check y ajustes del Dashboard
+viven en Render. No agregues un Blueprint parcial al servicio existente sin
+capturar primero todos sus valores actuales. `vercel.json` y el guardado
+`VERCEL` en `src/index.ts` se conservan por compatibilidad anterior, no como
+configuración del despliegue activo. Consulta
+`docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuración.

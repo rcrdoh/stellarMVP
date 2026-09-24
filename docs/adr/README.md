@@ -13,6 +13,6 @@ arquitectura.
 ## Registros
 
 - `0001-bun-fastify-framework.md`: Bun, TypeScript, Fastify y las restricciones
-  de despliegue de la Function Fastify en Vercel.
+  del despliegue Docker en Render (con soporte Vercel heredado).
 - `0002-error-taxonomy.md`: contrato publico de errores RFC 9457.
 - `0003-service-token-for-protected-routes.md`: token de servicio opcional para rutas protegidas.

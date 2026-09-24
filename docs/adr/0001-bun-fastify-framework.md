@@ -15,13 +15,21 @@ Fastify aporta un servidor HTTP maduro y Zod mantiene validacion explicita en el
 borde. Esta combinacion permite SDD con OpenAPI canonico y separacion de capas
 sin introducir un framework de aplicacion pesado.
 
-El servicio se despliega como Function Fastify en Vercel. La documentacion de
-Vercel reconoce `src/index.ts` como entrypoint y empaqueta la aplicacion Fastify
-como una Function; por eso no corresponde tratar este proyecto como un sitio
-estatico. Durante el despliegue se encontraron fallos por declarar patrones de
-`functions` que no viven bajo `api/`, por forzar `public` como salida y por
-dependencias entre las declaraciones de tipos Bun y el chequeo/transpilacion
-que Vercel aplica a la Function.
+La aplicacion se despliega actualmente en Render; el despliegue en Render ya fue
+realizado. El repositorio incluye un `Dockerfile` de produccion que fija el
+runtime Bun, instala dependencias de produccion y ejecuta el servicio HTTP.
+Render puede construir y ejecutar el contenedor desde ese archivo. No hay un
+`render.yaml` en el repositorio, por lo que la seleccion de rama, el tipo de
+servicio, el puerto configurado en Render, las variables de entorno y los
+health checks del Dashboard no quedan declarados como infraestructura en este
+repo.
+
+El repositorio conserva `vercel.json` y compatibilidad de entrypoint para
+Vercel, resultado del intento de despliegue anterior. Esa configuracion es
+heredada y no describe el destino de produccion vigente. Los errores historicos
+de Vercel (patrones `functions`, salida estatica `public` y resolucion de tipos)
+explican la compatibilidad restante, pero no deben dirigir cambios del
+despliegue activo en Render.
 
 ## Decision
 
@@ -33,51 +41,55 @@ Usar Bun, TypeScript estricto, Fastify y Zod como base:
 - Zod para validacion y schemas internos.
 - Biome para formato/lint.
 - OpenAPI canonico en `specs/openapi.json` validado por script SDD.
-- Vercel usa el preset `fastify` y detecta la entrada `src/index.ts`; esta
-  entrada importa `Fastify` directamente y construye la aplicacion desde ahi.
-- La configuracion versionada de Vercel es la fuente de verdad:
-  `framework: "fastify"`, `buildCommand: null`, `outputDirectory: null` y
-  `bunVersion: "1.4.x"`. No agregar `functions` apuntando a `src/index.ts`, ni
-  establecer `outputDirectory: "public"`: el primer patron no corresponde a
-  funciones dentro de `api/` y el segundo convierte incorrectamente el build en
-  uno estatico.
-- `src/index.ts` es un modulo ESM que **exporta la instancia de Fastify**
-  (`export default app`). Vercel importa este modulo y usa la instancia exportada
-  como handler de la Function; sin ese export no hay handler y todas las rutas
-  responden `404` aunque el build pase. `app.listen(...)` se ejecuta solo cuando
-  la variable `VERCEL` no esta presente, porque en Vercel no existe un puerto que
-  atender: alli el enrutamiento lo provee la plataforma.
-- `tsconfig.json` mantiene `types: []` para que el compilador de la Function no
-  dependa de la resolucion global de tipos Bun. Los tipos de Bun para
-  `check-types` viven en `tsconfig.check.json`; las APIs Bun usadas en codigo de
-  produccion se declaran junto a cada modulo que las usa, ya que el build de
-  Vercel no incorporo el `.d.ts` auxiliar en los errores observados.
+- Render es la plataforma activa para el servicio HTTP. El artefacto de
+  despliegue versionado es el `Dockerfile` en la raiz; el servicio de Render
+  debe usar runtime Docker y construir desde ese archivo. Render usa el `CMD`
+  del Dockerfile como comando de inicio, salvo que el Dashboard lo reemplace.
+- El `Dockerfile` fija Bun `1.4.0`, instala dependencias de produccion con
+  `bun install --frozen-lockfile --production`, copia `src`, `config` y
+  `specs`, y arranca con `bun run start`.
+- El servicio HTTP debe escuchar en `0.0.0.0`. El contenedor declara
+  `HOST=0.0.0.0` y `PORT=3000`; el puerto de servicio configurado en Render debe
+  coincidir con el puerto donde escucha la app. Render usa `10000` por defecto
+  para servicios web, y permite configurar el puerto; si se cambia el puerto
+  del contenedor, hay que mantener sincronizados `PORT`, `EXPOSE` y Render.
+- `src/index.ts` importa Fastify directamente, construye la app, la exporta
+  como default y llama `app.listen(...)` en ejecucion normal. La condicion
+  `VERCEL` conserva compatibilidad con el despliegue serverless anterior; en
+  Render la variable no debe definirse para que el proceso abra su puerto.
+- `tsconfig.json` mantiene `types: []`; `tsconfig.check.json` habilita los tipos
+  completos de Bun para `check-types`. Las APIs Bun utilizadas por produccion
+  tienen declaraciones locales en los modulos que las usan.
+- `vercel.json` es una configuracion heredada. No es la fuente de verdad del
+  despliegue Render ni debe cambiarse como solucion a fallos en Render.
 
-### Proteccion de la configuracion de despliegue
+### Proteccion de la configuracion de Render
 
-Los valores de `vercel.json`, el entrypoint y la separacion de configuracion de
-tipos descritos arriba son decisiones de arquitectura, no ajustes cosmeticos.
-No se deben cambiar para silenciar un error aislado sin identificar primero la
-fase exacta del build y el contrato del preset Fastify. En particular:
+El `Dockerfile`, el entrypoint, el host/puerto y la configuracion del servicio
+Render son decisiones funcionales. No se deben cambiar para silenciar un error
+aislado sin identificar primero si falla el build de imagen, el arranque, el
+health check o el enrutamiento. En particular:
 
-1. No agregar `outputDirectory`, `functions` o comandos de build personalizados
-   sin evidencia de que el preset Fastify actual los requiere.
-2. No mover el entrypoint ni envolver `Fastify` de forma que el detector deje de
-   reconocer la aplicacion. En particular, no eliminar el `export default app` de
-   `src/index.ts` ni llamar `app.listen(...)` sin condicionarlo a entornos no
-   serverless: eso reintroduce el `404` en Vercel.
-3. No volver a agregar `types: ["bun"]` al `tsconfig.json` usado por Vercel ni
-   eliminar las declaraciones locales de `Bun` para satisfacer solo al checker
-   local.
-4. Antes de aceptar un cambio en esta configuracion, ejecutar las comprobaciones
-   locales y validar un deployment Preview de Vercel desde el commit exacto. El
-   build local de TypeScript no sustituye la validacion del builder de Vercel.
-   Si no se puede obtener ese Preview, dejar el cambio como propuesta y no
-   presentar la configuracion como verificada.
+1. No retirar ni cambiar el runtime Docker, `CMD`, `HOST`, `PORT` o `EXPOSE` sin
+   verificar el contrato del servicio configurado en Render.
+2. No establecer `VERCEL` en Render: `src/index.ts` lo usa para omitir el bind
+   del puerto en Vercel.
+3. No agregar un `render.yaml` parcial para un servicio existente: Render
+   advierte que un Blueprint debe incluir la configuracion actual del recurso,
+   pues los valores omitidos pueden divergir del Dashboard. Si se decide
+   versionar la infraestructura, primero exportar/verificar todos los ajustes
+   actuales y mantenerlos sincronizados.
+4. Antes de aceptar cambios de despliegue, ejecutar las comprobaciones locales
+   y validar un deploy Preview de Render o un deploy equivalente que no reemplace
+   el servicio activo. Un build local no sustituye la validacion en Render.
+5. `vercel.json` y el soporte de Vercel se consideran legado hasta que una ADR
+   nueva restablezca formalmente Vercel como destino activo.
 
-Referencias primarias: [Fastify en Vercel](https://vercel.com/docs/frameworks/backend/fastify),
-[configuracion de proyecto Vercel](https://vercel.com/docs/project-configuration)
-y [opcion `typeRoots` de TypeScript](https://www.typescriptlang.org/tsconfig/typeRoots.html).
+Referencias primarias: [Docker en Render](https://render.com/docs/docker),
+[Web Services de Render y binding de puerto](https://render.com/docs/web-services),
+[Blueprint YAML de Render](https://render.com/docs/blueprint-spec) y
+[Fastify en Vercel](https://vercel.com/docs/frameworks/backend/fastify) para el
+soporte heredado.
 
 ## Consequences
 
@@ -86,6 +98,5 @@ y [opcion `typeRoots` de TypeScript](https://www.typescriptlang.org/tsconfig/typ
 - La documentacion oficial de Bun, TypeScript, Fastify y Zod debe revisarse
   antes de cambiar patrones de runtime, validacion o arranque.
 - Cambiar runtime/framework o romper esta estructura requiere una nueva ADR.
-- La configuracion funcional de Vercel debe conservar las restricciones y el
-  proceso de validacion de la seccion **Proteccion de la configuracion de
-  despliegue**.
+- La configuracion de Render debe conservar las restricciones y el proceso de
+  validacion de la seccion **Proteccion de la configuracion de Render**.
