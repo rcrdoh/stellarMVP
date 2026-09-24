@@ -41,6 +41,12 @@ Usar Bun, TypeScript estricto, Fastify y Zod como base:
   establecer `outputDirectory: "public"`: el primer patron no corresponde a
   funciones dentro de `api/` y el segundo convierte incorrectamente el build en
   uno estatico.
+- `src/index.ts` es un modulo ESM que **exporta la instancia de Fastify**
+  (`export default app`). Vercel importa este modulo y usa la instancia exportada
+  como handler de la Function; sin ese export no hay handler y todas las rutas
+  responden `404` aunque el build pase. `app.listen(...)` se ejecuta solo cuando
+  la variable `VERCEL` no esta presente, porque en Vercel no existe un puerto que
+  atender: alli el enrutamiento lo provee la plataforma.
 - `tsconfig.json` mantiene `types: []` para que el compilador de la Function no
   dependa de la resolucion global de tipos Bun. Los tipos de Bun para
   `check-types` viven en `tsconfig.check.json`; las APIs Bun usadas en codigo de
@@ -57,7 +63,9 @@ fase exacta del build y el contrato del preset Fastify. En particular:
 1. No agregar `outputDirectory`, `functions` o comandos de build personalizados
    sin evidencia de que el preset Fastify actual los requiere.
 2. No mover el entrypoint ni envolver `Fastify` de forma que el detector deje de
-   reconocer la aplicacion.
+   reconocer la aplicacion. En particular, no eliminar el `export default app` de
+   `src/index.ts` ni llamar `app.listen(...)` sin condicionarlo a entornos no
+   serverless: eso reintroduce el `404` en Vercel.
 3. No volver a agregar `types: ["bun"]` al `tsconfig.json` usado por Vercel ni
    eliminar las declaraciones locales de `Bun` para satisfacer solo al checker
    local.

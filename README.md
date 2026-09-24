@@ -148,7 +148,11 @@ docker compose up --build -d
 ## Vercel
 
 Vercel usa el preset Fastify y la entrada `src/index.ts`, que importa
-directamente Fastify para que el detector del framework la reconozca.
+directamente Fastify para que el detector del framework la reconozca y exporta la
+instancia como `export default app`. Ese export es obligatorio: Vercel lo usa
+como handler de la Function; sin el, todas las rutas responden `404` aunque el
+build pase. `app.listen(...)` solo se ejecuta cuando `VERCEL` no esta definida,
+de modo que local y Docker siguen atendiendo un puerto.
 `vercel.json` selecciona Bun 1.4 y no declara un directorio de salida estatico.
 No configures `outputDirectory` como `public`: la app se despliega como una
 Function Fastify. Configura `APP_ENV=prod` en el proyecto de Vercel.

@@ -48,3 +48,10 @@ bun run check
 - Si las pruebas pasan, actualiza la documentacion relacionada antes de terminar.
 - No guardes secretos en TOML, `.env.example`, docs ni tests.
 - No dejes servidores, contenedores o procesos en ejecucion sin informarlo.
+
+## Entorno local
+
+- Si `node`, `npm`, `curl` o `bun` fallan con errores de `GLIBCXX`/`OPENSSL` o
+  librerias faltantes, revisa `LD_LIBRARY_PATH`; un valor espurio apuntando a
+  `/tmp/_MEI*` rompe el enlazado dinamico. Ejecuta las herramientas con
+  `LD_LIBRARY_PATH= ...` para restaurar los enlaces del sistema.
