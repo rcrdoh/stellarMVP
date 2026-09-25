@@ -26,8 +26,9 @@ vectores no puede ser autoridad de precio ni autorización financiera.
   candidatos opcional, nunca fuente de precio/stock final.
 - Usar MongoDB y el checkpointer oficial `@langchain/langgraph-checkpoint-mongodb`
   para checkpoint/estado del agente; PostgreSQL para catálogo y estado
-  transaccional de quotes, checkouts, orders y payment attempts. Validar
-  compatibilidad Bun y retención antes de instalar.
+  transaccional de quotes, checkouts, orders y payment attempts. El driver y
+  checkpointer están instalados; compatibilidad operativa con Bun/Render,
+  conexión de runtime y política de retención siguen pendientes de validar.
 - Separar checkout comercial de cobro por recurso: UCP gobierna el intercambio
   de catálogo/checkout/orden; x402 queda como opción de pago por recurso digital
   HTTP. Proveedores de pago se conectan tras un puerto de capacidades, sin
@@ -38,6 +39,11 @@ vectores no puede ser autoridad de precio ni autorización financiera.
 - Mantener LLM en interpretación/explicación; reglas, dinero, permisos, estados,
   pagos y fulfillment son deterministas. Las compras autónomas posteriores
   requieren política de gasto revocable y otra decisión aceptada.
+
+El flujo inicial de Shopping Agent implementa el gate Jev, la búsqueda allowlisted,
+la persistencia/reanudación de selección y la aprobación humana de una quote.
+Esa aprobación no crea checkout ni ejecuta pago; Search Agent y los proveedores
+de búsqueda/cotización reales continúan pendientes.
 
 ## Consecuencias
 

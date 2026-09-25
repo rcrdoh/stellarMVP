@@ -1,6 +1,6 @@
 # Diseño propuesto: comercio asistido por agentes de IA
 
-Estado: propuesta de diseño; no implementado. Este documento sigue como pauta
+Estado: propuesta de diseño con el flujo interno inicial de Shopping Agent implementado. Este documento sigue como pauta
 normativa `pautas de diseño.md`, que prevalece ante divergencias con otros
 documentos. No cambia todavía el contrato público ni habilita compras reales.
 
@@ -57,11 +57,17 @@ proveedores de las capas de servicio.
 - `ShoppingState` conserva `sessionId`, estado, intención normalizada,
   candidatos mostrados, selección, cotización pendiente y referencias a
   checkout/orden. No conserva secretos de pago ni datos de tarjeta.
-- El estado durable del grafo y la conversación se guardan en MongoDB mediante
-  `@langchain/langgraph-checkpoint-mongodb` y su driver. Este adaptador todavía
-  no está instalado en el repo.
-- Nodos LLM: interpretar lenguaje, generar consultas candidatas y explicar
-  diferencias entre ofertas con los datos recibidos.
+- El estado durable del grafo y la conversación se guardan con el checkpointer
+  MongoDB de LangGraph. El adaptador está instalado, pero su conexión y ciclo de
+  vida todavía no están cableados al servidor.
+- Jev produce señales estructuradas de dominio/ruta/riesgo. Con confianza
+  inferior a 0.85, ruta no permitida, evidencia insuficiente, escalación o fallo
+  del proveedor, el grafo pide aclaración y no busca.
+- Para una ruta RAG aceptada, el ciclo ReAct de Groq solo conoce la herramienta
+  `search_merchants`, detrás del puerto `MerchantSearchAgent`. No se permite al
+  modelo invocar otro agente o herramienta.
+- La intención implementada usa el mensaje actual como consulta básica; la
+  extracción conversacional completa de filtros aún falta.
 - Nodos deterministas: validar el DTO, aplicar límites, buscar, filtrar ofertas,
   sumar importes, crear la cotización, comprobar aprobación y avanzar estados.
 - El modelo no puede inventar atributos ausentes, alterar una cotización,
@@ -292,14 +298,28 @@ en Stellar.
 
 ## Dependencias existentes y faltantes
 
-Ya instaladas: LangGraph, checkpointer PostgreSQL, LLM OpenAI-compatible,
-ScrapeGraph, Qdrant, `pg`, Stripe y x402 (Fastify/fetch/Stellar/EVM).
+Ya instaladas: LangGraph, checkpointers PostgreSQL y MongoDB, driver MongoDB,
+LLM OpenAI-compatible, ScrapeGraph, Qdrant, `pg`, Stripe y x402
+(Fastify/fetch/Stellar/EVM).
 
-Faltan para la arquitectura de las pautas: driver `mongodb`,
-`@langchain/langgraph-checkpoint-mongodb`, worker de ingesta, servicios/repos
-transaccionales de catálogo y comercio, DTOs Zod, adaptadores de fuente,
-checkout/payment/fulfillment, eventos y los contratos OpenAPI. Instalar una
-dependencia no habilita la función ni prueba compatibilidad.
+Implementado en esta fase: contratos Zod para intención/ofertas/cotización,
+clase base LangGraph, gate Jev con umbral configurable, adaptador Jev TypeSafe,
+adaptador Groq/OpenAI-compatible, ciclo ReAct con herramienta de búsqueda
+allowlisted, pausas reanudables para selección y aprobación, validación de
+cotización y hash estable, checkpointer MongoDB y factory de composición. La
+aprobación queda registrada en el checkpoint como estado `authorized`; no crea
+checkout, orden ni pago. La factory permite inyectar Search Agent y cotizador;
+ninguno de esos proveedores está implementado ni conectado al servidor HTTP.
+
+Persisten como faltantes la extracción robusta de filtros, los límites de
+presupuesto por llamadas/tokens (el ciclo ReAct sí tiene límite de iteraciones),
+consumo único de aprobación, implementación del Search Agent, revalidación
+comercial de cotización y composición/ciclo de vida del agente en el servidor.
+
+Faltan: worker de ingesta, servicios/repos transaccionales de catálogo y
+comercio, DTOs completos, adaptadores de fuente, checkout/payment/fulfillment,
+eventos y contratos OpenAPI. La incorporación del driver no demuestra aún
+compatibilidad operativa en Render ni una política de retención.
 
 ## Referencias primarias
 

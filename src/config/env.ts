@@ -24,6 +24,21 @@ export const envSchema = z.object({
 	CACHE_ENABLED: z.coerce.boolean().default(false),
 	SERVICE_TOKEN: z.string().default(""),
 	STELLAR_NETWORK: z.string().default(""),
+	JEV_API_KEY: z.string().default(""),
+	JEV_BASE_URL: z.string().url().default("https://api.typesafe.ai"),
+	JEV_MODEL: z.string().min(1).default("jev-latest"),
+	GROQ_API_KEY: z.string().default(""),
+	GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
+	SHOPPING_DOMAIN_CONFIDENCE_THRESHOLD: z.coerce
+		.number()
+		.min(0)
+		.max(1)
+		.default(0.85),
+	SHOPPING_ROUTE_CONFIDENCE_THRESHOLD: z.coerce
+		.number()
+		.min(0)
+		.max(1)
+		.default(0.85),
 });
 
 export type Env = z.infer<typeof envSchema>;

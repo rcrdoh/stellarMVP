@@ -15,3 +15,7 @@ se reporta como `disabled` y no cuenta para readiness. Al activar un proveedor
 real, usa Prisma Client para TypeScript/Postgres, inyectalo desde
 `src/http/server.ts` o desde el composition root del servicio y conserva
 credenciales en settings/entorno.
+
+`integrations/agents/` contiene el adaptador MongoDB del checkpointer LangGraph.
+El composition root controla conexión, setup y cierre; no se conecta por efecto
+lateral al importar módulos.

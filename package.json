@@ -15,6 +15,7 @@
 	},
 	"dependencies": {
 		"@langchain/langgraph": "^1.4.17",
+		"@langchain/langgraph-checkpoint-mongodb": "^1.4.1",
 		"@langchain/langgraph-checkpoint-postgres": "^1.0.5",
 		"@langchain/openai": "^1.5.13",
 		"@qdrant/js-client-rest": "^1.19.0",
@@ -28,6 +29,7 @@
 		"@x402/stellar": "^2.27.0",
 		"fastify": "^5.12.1",
 		"llamaindex": "^0.12.1",
+		"mongodb": "^6.21.0",
 		"pg": "^8.23.0",
 		"scrapegraph-js": "^2.2.1",
 		"stripe": "^22.6.2",
