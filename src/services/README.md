@@ -10,3 +10,14 @@ puerto de búsqueda y cotizador. Usa Jev para habilitar rutas y el modelo solo
 puede ejecutar la herramienta de búsqueda. `start` inicia/continúa el flujo y
 `resume` responde a las pausas de selección/aprobación con el mismo `threadId`.
 La aprobación no ejecuta checkout ni pago. Search sigue siendo un esqueleto.
+
+Casos de uso de agent commerce:
+
+- `agent-auth.ts`: verifica scopes por token (hash SHA-256 en Redis) y controla
+  la velocidad de gasto diaria (`max_daily_spend`). Emite `SVC-CORE-4001` para
+  scope insuficiente y `SVC-CORE-5003` al exceder el limite.
+- `agent-search.ts`: busqueda vectorial desacoplada de Fastify.
+- `agent-checkout.ts`: orquesta scope, challenge `X-402-Payment-Token`,
+  velocidad de gasto, liquidacion on-chain, persistencia de orden y marcado de
+  item `purchased` solo tras settlement exitoso. Un pago fallido devuelve
+  `SVC-PAYMENT-4022`.

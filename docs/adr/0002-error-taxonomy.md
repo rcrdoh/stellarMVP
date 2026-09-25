@@ -24,6 +24,14 @@ All HTTP error responses use the problem contract:
 - Public codes use `SVC-<DOMINIO>-<NNNN>`.
 - This base implements emittable `CORE` codes. Additional domains may be
   registered later with `defineErrorCode`.
+- The `PAYMENT` domain is registered for Agentic Commerce Protocol (ACP) x402
+  flows:
+  - `SVC-PAYMENT-4020` (`payment_required`) maps to HTTP `402 Payment Required`.
+    Emitted when an agentic route requires an `X-402-Payment-Token` challenge
+    that is missing or invalid. The handler also sets the `X-402-Challenge`
+    header so external agents can auto-negotiate payment.
+  - `SVC-PAYMENT-4022` (`payment_failed`) maps to HTTP `402` when the on-chain
+    settlement is rejected or times out.
 - `x-error-code` remains as an HTTP header and must match the body `code`.
 - `correlation.trace_id` uses incoming `x-trace-id` when present, otherwise the
   Fastify request id.

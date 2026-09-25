@@ -36,6 +36,8 @@ jobs:
           bun test
           bun run check-types
           bun run check
+      - name: Verify Docker build
+        run: docker build -t stellarmvp-verify .
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
       - name: Pull Vercel environment

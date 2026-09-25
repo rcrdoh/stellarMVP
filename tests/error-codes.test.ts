@@ -34,7 +34,7 @@ describe("error code registry", () => {
 
 	test("codes use SVC format", () => {
 		for (const definition of Object.values(errorRegistry)) {
-			expect(definition.code).toMatch(/^SVC-[A-Z]{3,4}-[0-9]{4}$/);
+			expect(definition.code).toMatch(/^SVC-[A-Z]{3,12}-[0-9]{4}$/);
 		}
 	});
 
@@ -44,17 +44,18 @@ describe("error code registry", () => {
 		}
 	});
 
-	test("HTTP-emittable catalog is CORE only", () => {
-		const nonEmittableCoreCodes = Object.values(errorCodes)
+	test("emittable catalog declares reserved domains", () => {
+		const nonEmittableCodes = Object.values(errorCodes)
 			.filter((definition) => !definition.emittable)
 			.map((definition) => definition.code);
 
-		expect(nonEmittableCoreCodes).toEqual(["SVC-CORE-9002"]);
-		expect(
-			Object.values(errorRegistry).every((definition) =>
-				definition.code.startsWith("SVC-CORE-"),
+		expect(nonEmittableCodes).toEqual(["SVC-CORE-9002"]);
+		const domains = new Set(
+			Object.values(errorRegistry).map(
+				(definition) => definition.code.split("-")[1],
 			),
-		).toBe(true);
+		);
+		expect(domains).toEqual(new Set(["CORE", "PAYMENT"]));
 	});
 
 	test("behavior is complete and agent hints are closed", () => {

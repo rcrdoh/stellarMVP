@@ -1,11 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { ZodError } from "zod";
+import { ZodError, type ZodType } from "zod";
 import {
 	type ErrorCodeDefinition,
 	errorCodes,
 	errorTypeUrl,
 } from "../domain/error-codes.js";
-import { AppError } from "../domain/errors.js";
+import { AppError, PaymentRequiredError } from "../domain/errors.js";
 
 type Problem = Readonly<{
 	type: string;
@@ -63,6 +63,12 @@ function classifyHttpError(error: Error): ErrorCodeDefinition | undefined {
 	if (httpError.statusCode === 415) {
 		return errorCodes.UNSUPPORTED_MEDIA_TYPE;
 	}
+	if (httpError.statusCode === 429) {
+		return errorCodes.RATE_LIMITED;
+	}
+	if (httpError.statusCode === 503) {
+		return errorCodes.AI_SERVICE_UNAVAILABLE;
+	}
 	if (
 		httpError.statusCode === 400 &&
 		(httpError.code === "FST_ERR_CTP_INVALID_JSON_BODY" ||
@@ -91,8 +97,45 @@ function sendProblem(
 	return response.send(body);
 }
 
+function isZodSchema(schema: unknown): schema is ZodType {
+	return (
+		typeof schema === "object" &&
+		schema !== null &&
+		typeof (schema as { safeParse?: unknown }).safeParse === "function"
+	);
+}
+
+/**
+ * Fastify validator compiler that understands Zod schemas. Non-Zod schemas
+ * fall back to the default Ajv compiler so JSON Schema contracts keep working.
+ */
+export function registerValidatorCompiler(app: FastifyInstance): void {
+	const defaultCompiler = app.validatorCompiler;
+	app.setValidatorCompiler((route) => {
+		const schema: unknown = route.schema;
+		if (isZodSchema(schema)) {
+			return (data: unknown) => {
+				const result = schema.safeParse(data);
+				if (result.success) {
+					return { value: result.data };
+				}
+				return { error: result.error };
+			};
+		}
+		if (defaultCompiler === undefined) {
+			throw new Error("No validator compiler registered for schema.");
+		}
+		return defaultCompiler(route);
+	});
+}
+
 export function registerErrorHandler(app: FastifyInstance): void {
 	app.setErrorHandler((error, request, reply) => {
+		if (error instanceof PaymentRequiredError) {
+			reply.header("X-402-Challenge", error.challengePayload);
+			return sendProblem(reply, error.errorCode, request);
+		}
+
 		if (error instanceof AppError) {
 			return sendProblem(reply, error.errorCode, request);
 		}

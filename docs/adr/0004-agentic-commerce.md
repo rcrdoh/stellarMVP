@@ -2,7 +2,12 @@
 
 ## Status
 
-Proposed
+Proposed (protocol surface ACP x402 parcialmente implementado; ver seccion
+"Protocolo ACP x402 implementado"). Sigue pendiente para `Accepted` un prototipo
+sandbox end-to-end con persistencia/reanudacion e idempotencia validadas, las
+decisiones abiertas de `docs/agentic-commerce-design.md` y la politica de
+retencion de estado. Las compras autonomas con fondos reales no estan
+habilitadas.
 
 ## Context
 
@@ -44,6 +49,32 @@ El flujo inicial de Shopping Agent implementa el gate Jev, la búsqueda allowlis
 la persistencia/reanudación de selección y la aprobación humana de una quote.
 Esa aprobación no crea checkout ni ejecuta pago; Search Agent y los proveedores
 de búsqueda/cotización reales continúan pendientes.
+
+### Protocolo ACP x402 implementado (2026-09)
+
+Esta fase materializa la superficie HTTP de agent commerce definida en
+`specs/openapi.json` sin cambiar las decisiones de almacenamiento de este ADR:
+
+- `POST /v1/agent/search`: busqueda vectorial con validacion Zod estricta del
+  body; errores de validacion responden RFC 9457
+  `SVC-CORE-1002 schema_validation_failed` (HTTP `422`).
+- `POST /v1/agent/checkout`: exige `X-402-Payment-Token`. Si falta o es invalido
+  responde `SVC-PAYMENT-4020` (HTTP `402`) con header `X-402-Challenge` para
+  auto-negociacion. La orden solo se crea y el item solo pasa a `purchased`
+  despues de que la liquidacion on-chain en Horizon resuelve con
+  `successful === true`; un fallo o timeout arroja `SVC-PAYMENT-4022`.
+- Ordenes y ledger se persisten en PostgreSQL (`orders`), no en memoria.
+- Scopes de agente y control de velocidad de gasto se evaluan con el adaptador
+  Redis (`agent:token:<hash>`, `agent:spend:<hash>:<YYYY-MM-DD>`), emitiendo
+  `SVC-CORE-4001` (scope insuficiente) o `SVC-CORE-5003` (rate limited).
+- El rate limiting de `@fastify/rate-limit` sobre `/v1/agent/*` y los circuit
+  breakers de llamadas LLM/vector responden con RFC 9457.
+
+La persistencia de checkpoint del agente **permanece en MongoDB**
+(`@langchain/langgraph-checkpoint-mongodb`) segun la decision de este ADR.
+Sustituirla por `@langchain/langgraph-checkpoint-postgres` seria un cambio de
+arquitectura y requiere un ADR aceptado; propuestas externas que lo pidan deben
+tratarse como cambio de diseno, no como correccion mecanica.
 
 ## Consecuencias
 

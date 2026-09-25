@@ -20,6 +20,9 @@
 		},
 		{
 			"name": "items"
+		},
+		{
+			"name": "agent"
 		}
 	],
 	"paths": {
@@ -262,6 +265,217 @@
 					}
 				]
 			}
+		},
+		"/v1/agent/search": {
+			"post": {
+				"operationId": "agentSearch",
+				"tags": ["agent"],
+				"summary": "Run a scoped agentic vector search",
+				"description": "Executes a vector search on behalf of an authenticated agent. Requires the agent:search scope. Rate limited per agent token.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AgentSearchQuery"
+							},
+							"examples": {
+								"demo": {
+									"value": {
+										"query": "wireless headphones",
+										"limit": 10,
+										"filters": {
+											"merchant": "canonical"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Ranked search results",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AgentSearchResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"agentToken": []
+					}
+				]
+			}
+		},
+		"/v1/agent/checkout": {
+			"post": {
+				"operationId": "agentCheckout",
+				"tags": ["agent"],
+				"summary": "Create a paid order via ACP x402 checkout",
+				"description": "Creates an order on behalf of an authenticated agent. Requires the agent:checkout scope and a valid X-402-Payment-Token. When the token is missing or invalid the endpoint answers 402 Payment Required with an X-402-Challenge header for ACP x402 auto-negotiation. The order is persisted and marked paid only after the Stellar transaction is confirmed on-chain.",
+				"parameters": [
+					{
+						"name": "X-402-Payment-Token",
+						"in": "header",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "ACP x402 payment token. Missing or invalid tokens receive a 402 challenge."
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AgentCheckoutRequest"
+							},
+							"examples": {
+								"demo": {
+									"value": {
+										"itemId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+										"amount": "12.5000000",
+										"currency": "USDC",
+										"destination": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+										"idempotencyKey": "agent-cart-1"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Order created and paid on-chain",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Order"
+								}
+							}
+						}
+					},
+					"402": {
+						"description": "Payment required or on-chain settlement failed. A 402 negotiation response carries the X-402-Challenge header.",
+						"headers": {
+							"X-402-Challenge": {
+								"$ref": "#/components/headers/X402ChallengeHeader"
+							},
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"agentToken": []
+					}
+				]
+			}
 		}
 	},
 	"components": {
@@ -270,7 +484,13 @@
 				"description": "Stable error code. Matches problem.code.",
 				"schema": {
 					"type": "string",
-					"pattern": "^SVC-[A-Z]{3,4}-[0-9]{4}$"
+					"pattern": "^SVC-[A-Z]{3,12}-[0-9]{4}$"
+				}
+			},
+			"X402ChallengeHeader": {
+				"description": "ACP x402 payment challenge negotiated by the agentic checkout endpoint.",
+				"schema": {
+					"type": "string"
 				}
 			}
 		},
@@ -313,7 +533,7 @@
 					},
 					"code": {
 						"type": "string",
-						"pattern": "^SVC-[A-Z]{3,4}-[0-9]{4}$"
+						"pattern": "^SVC-[A-Z]{3,12}-[0-9]{4}$"
 					},
 					"category": {
 						"enum": [
@@ -462,6 +682,133 @@
 					}
 				},
 				"additionalProperties": false
+			},
+			"AgentSearchQuery": {
+				"type": "object",
+				"required": ["query"],
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 500
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 50,
+						"default": 10
+					},
+					"filters": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "string"
+						}
+					}
+				},
+				"additionalProperties": false
+			},
+			"AgentSearchResult": {
+				"type": "object",
+				"required": ["id", "score", "payload"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"score": {
+						"type": "number"
+					},
+					"payload": {
+						"type": "object",
+						"additionalProperties": true
+					}
+				},
+				"additionalProperties": false
+			},
+			"AgentSearchResponse": {
+				"type": "object",
+				"required": ["results", "count"],
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AgentSearchResult"
+						}
+					},
+					"count": {
+						"type": "integer",
+						"minimum": 0
+					}
+				},
+				"additionalProperties": false
+			},
+			"AgentCheckoutRequest": {
+				"type": "object",
+				"required": ["itemId", "amount", "currency", "destination"],
+				"properties": {
+					"itemId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"amount": {
+						"type": "string",
+						"pattern": "^[0-9]+(\\.[0-9]+)?$"
+					},
+					"currency": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 12
+					},
+					"destination": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 128
+					},
+					"idempotencyKey": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 128
+					}
+				},
+				"additionalProperties": false
+			},
+			"Order": {
+				"type": "object",
+				"required": [
+					"id",
+					"itemId",
+					"amount",
+					"currency",
+					"status",
+					"transactionHash",
+					"createdAt"
+				],
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"itemId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"amount": {
+						"type": "string"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"status": {
+						"enum": ["pending_payment", "paid", "failed", "fulfilled"]
+					},
+					"transactionHash": {
+						"type": ["string", "null"]
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"additionalProperties": false
 			}
 		},
 		"securitySchemes": {
@@ -469,6 +816,11 @@
 				"type": "http",
 				"scheme": "bearer",
 				"description": "Optional service-to-service token. Required on protected routes when SERVICE_TOKEN is configured."
+			},
+			"agentToken": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "Agent bearer token registered in Redis with scopes and a max daily spend. Required on /v1/agent/* routes."
 			}
 		}
 	}

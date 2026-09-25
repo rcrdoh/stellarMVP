@@ -45,7 +45,7 @@ export type ErrorCodeDefinition = Readonly<{
 	deprecated_at?: string;
 }>;
 
-const errorCodePattern = /^SVC-[A-Z]{3,4}-[0-9]{4}$/;
+const errorCodePattern = /^SVC-[A-Z]{3,12}-[0-9]{4}$/;
 
 const typeBaseUrl = "https://example.com/errors";
 
@@ -259,6 +259,29 @@ export const errorCodes = {
 		),
 		emittable: true,
 	}),
+	PAYMENT_REQUIRED: defineErrorCode({
+		code: "SVC-PAYMENT-4020",
+		title: "payment_required",
+		status: 402,
+		category: "STATE_CONFLICT",
+		detail_key: "payment.payment_required",
+		behavior: behavior("conditional", "none", "none", "REQUEST_STEP_UP"),
+		emittable: true,
+	}),
+	PAYMENT_FAILED: defineErrorCode({
+		code: "SVC-PAYMENT-4022",
+		title: "payment_failed",
+		status: 402,
+		category: "STATE_CONFLICT",
+		detail_key: "payment.payment_failed",
+		behavior: behavior(
+			"conditional",
+			"none",
+			"contact_support",
+			"ABORT_AND_REPORT",
+		),
+		emittable: true,
+	}),
 	DEPENDENCY_UNAVAILABLE: defineErrorCode({
 		code: "SVC-CORE-5001",
 		title: "dependency_unavailable",
@@ -299,6 +322,21 @@ export const errorCodes = {
 			"none",
 			"RETRY_WITH_BACKOFF",
 			60,
+		),
+		emittable: true,
+	}),
+	AI_SERVICE_UNAVAILABLE: defineErrorCode({
+		code: "SVC-CORE-5005",
+		title: "ai_service_unavailable",
+		status: 503,
+		category: "DEPENDENCY",
+		detail_key: "core.ai_service_unavailable",
+		behavior: behavior(
+			"safe_if_idempotent",
+			"none",
+			"none",
+			"RETRY_WITH_BACKOFF",
+			30,
 		),
 		emittable: true,
 	}),

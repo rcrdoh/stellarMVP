@@ -2,7 +2,8 @@
 
 Documentacion de arquitectura, decisiones y flujo de trabajo.
 
-- `adr/`: `0001` framework base, `0002` taxonomia de errores y `0003` token de servicio.
+- `adr/`: `0001` framework base, `0002` taxonomia de errores, `0003` token de
+  servicio y `0004` comercio asistido por agentes (ACP x402).
 - `Taxonomia_Errores_v1.md`: contrato normativo de errores.
 - `docker.md`: manual de build y ejecucion con Docker.
 - `agent-retriever-stack.md`: arquitectura propuesta, dependencias y pendientes

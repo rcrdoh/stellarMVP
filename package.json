@@ -14,6 +14,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@fastify/rate-limit": "^11.2.0",
 		"@langchain/langgraph": "^1.4.17",
 		"@langchain/langgraph-checkpoint-mongodb": "^1.4.1",
 		"@langchain/langgraph-checkpoint-postgres": "^1.0.5",
@@ -28,15 +29,17 @@
 		"@x402/fetch": "^2.27.0",
 		"@x402/stellar": "^2.27.0",
 		"fastify": "^5.12.1",
-		"llamaindex": "^0.12.1",
+		"ioredis": "^6.0.0",
 		"mongodb": "^6.21.0",
+		"opossum": "^10.0.0",
 		"pg": "^8.23.0",
-		"scrapegraph-js": "^2.2.1",
 		"stripe": "^22.6.2",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.10",
+		"@types/opossum": "^8.1.9",
+		"@types/pg": "^8.23.1",
 		"typescript": "^7.0.2"
 	},
 	"engines": {

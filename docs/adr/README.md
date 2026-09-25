@@ -17,4 +17,7 @@ arquitectura.
 - `0002-error-taxonomy.md`: contrato publico de errores RFC 9457.
 - `0003-service-token-for-protected-routes.md`: token de servicio opcional para rutas protegidas.
 - `0004-agentic-commerce.md`: propuesta para habilitar comercio asistido por
-  agentes, pendiente de decisiones de producto y validación sandbox.
+  agentes; la superficie HTTP ACP x402 (search, checkout 402, ordenes Postgres,
+  scopes Redis, rate limiting y circuit breakers) ya esta implementada, pero la
+  decision sigue `Proposed` hasta validar el prototipo sandbox end-to-end y las
+  decisiones abiertas de producto. Checkpoint del agente permanece en MongoDB.

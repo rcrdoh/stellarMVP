@@ -2,9 +2,17 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { type Env, env } from "../config/env.js";
+import {
+	agentCheckoutRequestSchema,
+	agentSearchQuerySchema,
+} from "../domain/agent.js";
 import { errorCodes } from "../domain/error-codes.js";
 import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
+import type { AgentAuthService } from "../services/agent-auth.js";
+import { AGENT_SCOPES } from "../services/agent-auth.js";
+import type { AgentCheckoutService } from "../services/agent-checkout.js";
+import type { AgentSearchService } from "../services/agent-search.js";
 import type { ItemService } from "../services/item-service.js";
 import type { AppIntegrations } from "./server.js";
 
@@ -15,6 +23,12 @@ declare const Bun: {
 };
 
 const openApiSpecUrl = new URL("../../specs/openapi.json", import.meta.url);
+
+export type AgentRoutes = Readonly<{
+	auth: AgentAuthService;
+	search: AgentSearchService;
+	checkout: AgentCheckoutService;
+}>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
 
@@ -58,11 +72,20 @@ function requireServiceToken(request: FastifyRequest, runtimeEnv: Env): void {
 	}
 }
 
+function requireAgentToken(request: FastifyRequest): string {
+	const token = serviceTokenFromHeader(request);
+	if (token === undefined || token.length === 0) {
+		throw new AppError(errorCodes.CREDENTIALS_MISSING);
+	}
+	return token;
+}
+
 export function registerRoutes(
 	app: FastifyInstance,
 	itemService: ItemService,
 	runtimeEnv: Env = env,
 	integrations?: AppIntegrations,
+	agentRoutes?: AgentRoutes,
 ): void {
 	app.get("/", async (_request, reply) => reply.redirect("/docs"));
 
@@ -124,4 +147,46 @@ export function registerRoutes(
 		const params = request.params as { itemId: string };
 		return itemService.get(params.itemId);
 	});
+
+	if (agentRoutes === undefined) {
+		return;
+	}
+
+	app.post(
+		"/v1/agent/search",
+		{
+			schema: {
+				body: agentSearchQuerySchema,
+			},
+		},
+		async (request) => {
+			const token = requireAgentToken(request);
+			await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.SEARCH);
+			const query = agentSearchQuerySchema.parse(request.body);
+			return agentRoutes.search.search(query);
+		},
+	);
+
+	app.post(
+		"/v1/agent/checkout",
+		{
+			schema: {
+				body: agentCheckoutRequestSchema,
+			},
+		},
+		async (request, reply) => {
+			const token = requireAgentToken(request);
+			const paymentTokenHeader = request.headers["x-402-payment-token"];
+			const paymentToken = Array.isArray(paymentTokenHeader)
+				? paymentTokenHeader[0]
+				: paymentTokenHeader;
+			const input = agentCheckoutRequestSchema.parse(request.body);
+			const order = await agentRoutes.checkout.checkout({
+				token,
+				paymentToken,
+				request: input,
+			});
+			return reply.code(201).send(order);
+		},
+	);
 }
