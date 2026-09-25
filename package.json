@@ -28,6 +28,7 @@
 		"@x402/stellar": "^2.27.0",
 		"fastify": "^5.12.1",
 		"llamaindex": "^0.12.1",
+		"mongodb": "^7.6.0",
 		"pg": "^8.23.0",
 		"scrapegraph-js": "^2.2.1",
 		"stripe": "^22.6.2",

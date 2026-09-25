@@ -1,6 +1,6 @@
 # Taxonomía de errores, códigos y comportamientos informativos v1
 
-**Estado:** contrato normativo de la plantilla · **Ámbito:** dominio `CORE` de este servicio
+**Estado:** contrato normativo de la plantilla · **Ámbito:** dominios `CORE` y `PAY` de este servicio
 **Base:** RFC 9457 (`application/problem+json`) extendido con campos de comportamiento
 **Regla de oro:** *"falló"* y *"no sé si ocurrió"* son estados distintos. Confundirlos produce reintentos peligrosos o pérdida silenciosa. Esta taxonomía existe para que ese error sea imposible de cometer por accidente.
 
@@ -10,7 +10,7 @@
 
 El error se define **antes** de que exista lo que puede fallar. Si cada cambio inventa su propio formato, los clientes ya están parseando strings y no pueden distinguir un rechazo de un timeout.
 
-Esta base **implementa** el dominio `CORE`. Dominios adicionales se agregan con `defineErrorCode` dentro de un código de tres letras, sin tocar handlers HTTP.
+Esta base implementa los dominios `CORE` y `PAY`. Cada dominio se registra con `defineErrorCode` y conserva su rango semántico.
 
 ---
 
@@ -23,7 +23,7 @@ SVC-<DOMINIO>-<NNNN>
 | Parte | Regla |
 | --- | --- |
 | `SVC` | Prefijo fijo. Distingue errores propios de errores de proveedor, que nunca se propagan tal cual. |
-| `<DOMINIO>` | 3 o 4 letras mayúsculas. El dominio registrado en esta plantilla es `CORE`. |
+| `<DOMINIO>` | 3 o 4 letras mayúsculas. Los dominios registrados son `CORE` y `PAY`. |
 | `<NNNN>` | Rango numérico que **determina la categoría semántica**. Un código nunca cambia de rango. |
 
 ### 2.1 Dominios
@@ -31,6 +31,7 @@ SVC-<DOMINIO>-<NNNN>
 | Dominio | Módulo | Responsable de emitir |
 | --- | --- | --- |
 | `CORE` | Plataforma / kernel HTTP | Validación, autenticación, idempotencia, dependencias |
+| `PAY` | Pagos Stellar | Cotización aprobada, ownership, intent y validación de transacción |
 
 Otros dominios pueden añadirse al copiar la plantilla. El patrón público es `SVC-[A-Z]{3,4}-[0-9]{4}`.
 
@@ -116,11 +117,22 @@ Otros dominios pueden añadirse al copiar la plantilla. El patrón público es `
 | `SVC-CORE-5001` | `dependency_unavailable` | 502 | safe_if_idempotent | none | none |
 | `SVC-CORE-5002` | `dependency_timeout` | 504 | safe_if_idempotent | unknown | none |
 | `SVC-CORE-5003` | `rate_limited` | 429 | safe_if_idempotent | none | none |
+| `SVC-CORE-5004` | `service_unavailable` | 503 | safe_if_idempotent | none | none |
 | `SVC-CORE-6001` | `outcome_indeterminate` | 409 | after_reconcile | unknown | none |
 | `SVC-CORE-9001` | `unhandled_internal_error` | 500 | never | unknown | contact_support |
 | `SVC-CORE-9002` | `invalid_configuration_at_startup` | — (fail fast) | never | none | contact_support |
 
 `SVC-CORE-9002` no se emite por HTTP: el proceso falla al arrancar.
+
+### 4.1 Catálogo v1 — dominio `PAY`
+
+| Código | `title` | HTTP | `retryable` | `financial_effect` | `human_action` |
+| --- | --- | --- | --- | --- | --- |
+| `SVC-PAY-3001` | `payment_quote_not_found` | 404 | never | none | none |
+| `SVC-PAY-3002` | `payment_quote_expired` | 409 | never | none | none |
+| `SVC-PAY-3003` | `payment_principal_not_authorized` | 403 | never | none | contact_support |
+| `SVC-PAY-3004` | `payment_transaction_mismatch` | 409 | never | none | none |
+| `SVC-PAY-3005` | `payment_intent_not_found` | 404 | never | none | none |
 
 ---
 

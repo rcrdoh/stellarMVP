@@ -1,15 +1,15 @@
 # Entorno de agente recuperador
 
-Estado: arquitectura propuesta y dependencias instaladas. La lógica de agente,
-ingesta, pagos y workers todavía no está implementada.
+Estado: la arquitectura de agente, ingesta y workers sigue propuesta. La primera
+etapa del backend de pagos Stellar Testnet está implementada detrás de
+`PAYMENTS_ENABLED=false`; checkout, el agente y los workers no están conectados.
 
 ## Decisiones de stack
 
 - **Orquestación:** LangGraph.js para modelar recuperación, scraping, extracción,
   generación y reintentos como pasos con estado persistente. No añadir Google ADK
-  en paralelo: ambos cubren orquestación. Para estado del Shopping Agent, las
-  pautas obligatorias eligen MongoDB y su checkpointer de LangGraph; PostgreSQL
-  queda para catálogo y registros transaccionales. Jev es un modelo para
+  en paralelo: ambos cubren orquestación. Para estado del Shopping Agent, el
+  equipo eligió MongoDB y su checkpointer de LangGraph. Jev es un modelo para
   decisiones tipadas (por ejemplo, clasificar o enrutar), no un sustituto del
   LLM generativo ni del grafo. Dejarlo como posible adaptador futuro.
 - **LLM:** usar `LLM_API_KEY` y configuración de proveedor/modelo/base URL. El
@@ -27,10 +27,12 @@ ingesta, pagos y workers todavía no está implementada.
   puntos con metadatos de origen, URL canónica, fecha, tenant y documento para
   poder filtrar y reconstruir citas. Evaluar recuperación híbrida semántica y
   léxica con datos reales antes de fijarla como requisito.
-- **Datos:** MongoDB para checkpoint/estado del agente; PostgreSQL para catálogo
-  transaccional y órdenes; Qdrant solo para índice vectorial de descubrimiento.
-  Los trabajos de ingesta son asíncronos y deben tener persistencia e
-  idempotencia, separadas del checkpoint conversacional.
+- **Datos:** MongoDB para checkpoint/estado del agente y colecciones separadas
+  de catálogo, órdenes y pagos; Qdrant solo para índice vectorial de
+  descubrimiento. El servicio inicial de pagos usa MongoDB para cotizaciones
+  aprobadas e intents idempotentes. El checkpointer, catálogo y órdenes aún no
+  están integrados. Los trabajos de ingesta son asíncronos y deben tener
+  persistencia e idempotencia, separadas del checkpoint conversacional.
 - **Despliegue:** Fastify/API se despliega en Render; ejecutar scraping/ingesta
   en un worker Docker separado. La API debe aceptar trabajos y devolver su
   estado; no mantener una petición HTTP abierta hasta que termine el scraping.
@@ -41,16 +43,18 @@ La instalación de paquetes prepara el entorno, pero no activa integraciones ni
 cambia el comportamiento de la API:
 
 - LangGraph.js y su checkpointer PostgreSQL actual: `@langchain/langgraph`,
-  `@langchain/langgraph-checkpoint-postgres`. El checkpointer PostgreSQL está
-  instalado, pero el diseño de compra por agentes requiere evaluar y añadir
-  `@langchain/langgraph-checkpoint-mongodb` y `mongodb`; no intercambiar stores
-  sin una decisión explícita.
+  `@langchain/langgraph-checkpoint-postgres`. Está instalado, pero el diseño
+  acordado requiere añadir `@langchain/langgraph-checkpoint-mongodb` y
+  `mongodb`, tras una prueba de compatibilidad con Bun.
 - Cliente LLM: `@langchain/openai`.
 - Ingesta y vector store: `llamaindex`, `@qdrant/js-client-rest`.
 - Scraping gestionado: `scrapegraph-js`.
 - x402: `@x402/core`, `@x402/fastify`, `@x402/fetch`, `@x402/stellar` y
   `@x402/evm`.
-- Persistencia relacional: `pg`.
+- Pagos Stellar: `mongodb` está conectado al backend de intents. El SDK Stellar
+  existente construye y concilia pagos clásicos en Testnet; no representa una
+  integración activa de x402 ni de Soroban.
+- Persistencia PostgreSQL heredada: `pg` (no activa en este diseño).
 - Cliente de Stripe: `stripe`.
 
 La versión resuelta se registra en `bun.lock`; revisar compatibilidad Bun/Node y
@@ -85,18 +89,20 @@ proceso web y pruebas de settlement satisfactorias en testnet.
 
 ## UCP y comercio asistido
 
-El diseño de compra por agentes, que sigue obligatoriamente
-`pautas de diseño.md`, está en `docs/agentic-commerce-design.md`. UCP/Shopify
+El diseño de compra por agentes está en `docs/agentic-commerce-design.md` y el
+plan de pago en `docs/stellar-payments-plan.md`. UCP/Shopify
 Global Catalog es candidato para descubrimiento de productos y checkout; x402
 cubre pago HTTP por recurso y no sustituye carrito, orden, devolución o
-fulfillment. Esta selección es propuesta: no hay aún endpoints de comercio ni
-integración activa. No implementar pagos reales hasta cerrar merchant, moneda,
-settlement y políticas de autorización.
+fulfillment. El backend inicial de Stellar Testnet cuenta con rutas internas e
+intents idempotentes en MongoDB; no hay endpoints de catálogo/checkout,
+productor de cotizaciones ni integración end-to-end. No se ha realizado una
+compra en Testnet ni está habilitado Mainnet.
 
-## Configuración prevista
+## Configuración futura del agente
 
-Nombres sugeridos para documentar al implementar; todavía no están conectados a
-la configuración tipada:
+Estas variables corresponden al agente y sus integraciones pendientes; todavía
+no están conectadas a la configuración tipada. Las variables del backend de
+pagos se describen en `docs/stellar-payments-plan.md`.
 
 | Variable | Uso |
 | --- | --- |
@@ -105,8 +111,7 @@ la configuración tipada:
 | `LLM_MODEL` | Modelo de generación |
 | `LLM_API_BASE_URL` | URL para proveedores compatibles, opcional |
 | `SGAI_API_KEY` | Acceso a ScrapeGraphAI gestionado |
-| `MONGODB_URI` | Checkpoints y estado durable del Shopping Agent |
-| `DATABASE_URL` | PostgreSQL para catálogo/órdenes y datos transaccionales |
+| `MONGODB_URI` | Pagos Testnet cuando están habilitados; checkpoints, catálogo y órdenes siguen pendientes |
 | `QDRANT_URL` / `QDRANT_API_KEY` | Qdrant local o gestionado |
 | `X402_NETWORK` | Red de prueba habilitada, por defecto testnet |
 | `X402_FACILITATOR_URL` | Facilitador de la red elegida |
@@ -123,8 +128,8 @@ ninguno de esos secretos.
   pregunta; actualizar `specs/openapi.json` antes de exponer las rutas.
 - Implementar persistencia de fuentes/documentos y ejecución durable con
   idempotencia, reintentos limitados y política de retención.
-- Crear worker Docker, health checks y servicios locales MongoDB,
-  PostgreSQL/Qdrant; no asumir que el filesystem del contenedor Render sirve
+- Crear worker Docker, health checks y servicios locales MongoDB/Qdrant; no
+  asumir que el filesystem del contenedor Render sirve
   para persistencia durable.
 - Implementar extracción mediante ScrapeGraphAI, límites de páginas/coste,
   canonicalización, deduplicación y procedencia de cada fragmento.
@@ -132,9 +137,10 @@ ninguno de esos secretos.
   direcciones link-local, validar DNS/redirecciones, limitar tamaño/tiempo y
   permitir cancelar trabajos. Respetar términos, robots y restricciones de los
   sitios objetivo.
-- Añadir x402 de entrada/salida separadamente, empezar con pagos simulados y
-  Stellar testnet, y probar firma, importe, red, replay, límites y fallos de
-  facilitador antes de considerar mainnet.
+- Conectar el backend Stellar Testnet al checkout y al productor de cotizaciones;
+  implementar el flujo de wallet en el frontend. Añadir x402 de entrada/salida
+  por separado y no considerar Mainnet sin operación, autorización y pruebas de
+  settlement aprobadas.
 - Añadir pruebas de recuperación/citas, seguridad, reintentos, duplicados y
   fallos de cada dependencia; actualizar OpenAPI, documentación y variables de
   entorno cuando la lógica exista.

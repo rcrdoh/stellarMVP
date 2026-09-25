@@ -1,8 +1,10 @@
 # Diseño propuesto: comercio asistido por agentes de IA
 
-Estado: propuesta de diseño; no implementado. Este documento sigue como pauta
-normativa `pautas de diseño.md`, que prevalece ante divergencias con otros
-documentos. No cambia todavía el contrato público ni habilita compras reales.
+Estado: la arquitectura de comercio sigue siendo una propuesta. La primera
+etapa del backend interno de pago Stellar Testnet está implementada según
+`stellar-payments-plan.md`; checkout y el contrato público de comercio siguen
+pendientes. `PAYMENTS_ENABLED` está apagado por defecto y no se habilitan compras
+reales.
 
 ## Objetivo y límites
 
@@ -33,15 +35,15 @@ flowchart LR
   SA --> SS[Servicio de búsqueda\nreglas deterministas]
   SS --> GC[Shopify Global Catalog\nUCP Catalog MCP]
   SS --> MC[APIs oficiales / MCP\npor comercio]
-  SS --> PG[(PostgreSQL\ncatálogo y órdenes)]
+  SS --> MG[(MongoDB\ncatálogo, órdenes y checkpoints)]
   SS -. sólo descubrimiento .-> Q[(Qdrant\níndice opcional)]
-  SA --> MG[(MongoDB\ncheckpoints LangGraph)]
+  SA --> MG
   SA --> CO[Checkout / Order Service]
   CO --> PAY[Payment Provider port]
   PAY --> STR[Stripe / PSP]
-  PAY --> ST[Stellar x402]
+  PAY --> ST[Pago USDC Stellar]
   CO --> F[Fulfillment adapter]
-  ING[Worker de ingesta] --> PG
+  ING[Worker de ingesta] --> MG
   ING --> Q
   ING --> SCR[ScrapeGraph\nfuentes permitidas]
 ```
@@ -76,8 +78,8 @@ awaiting_approval -> authorized -> completed`; las salidas de error conducen a
 haya confirmado la orden.
 
 Persistir el estado del grafo no convierte el grafo en fuente autoritativa de
-la transacción: órdenes, pagos y stock tienen registros propios en PostgreSQL o
-en el proveedor correspondiente.
+la transacción: órdenes, pagos y stock tienen colecciones propias en MongoDB o
+estado en el proveedor correspondiente.
 
 ### Capa 2: Search Agent y catálogo
 
@@ -90,7 +92,7 @@ Orden propuesto de fuentes:
    lookup de productos/variantes. Requiere perfil UCP del agente. Sus datos
    inferidos se tratan como señales de descubrimiento, no como afirmaciones del
    vendedor.
-2. Catálogo local PostgreSQL para productos/ofertas de comercios integrados y
+2. Catálogo local MongoDB para productos/ofertas de comercios integrados y
    datos canónicos que controle StellarMVP.
 3. APIs oficiales o MCP de comercios adicionales, priorizando proveedores con
    autorización y política de uso documentadas.
@@ -122,12 +124,12 @@ normalizados disponibles.
 
 ### Datos e ingesta
 
-- **MongoDB:** estado/checkpoints del agente, historial operativo mínimo y
-  datos flexibles de ejecución. Retención y borrado se definirán antes de
-  producción.
-- **PostgreSQL:** `merchants`, `products`, `offers`, `quotes`, `checkouts`,
-  `orders`, `payment_attempts` y eventos de dominio que requieren transacciones,
-  relaciones e idempotencia.
+- **MongoDB:** estado/checkpoints del agente en colecciones separadas de
+  `merchants`, `products`, `offers`, `quotes`, `checkouts`, `orders`,
+  `payment_intents`, `payment_attempts` y eventos de dominio. Índices únicos,
+  transiciones condicionales y transacciones multidocumento donde hagan falta
+  preservan idempotencia y consistencia. La retención de pagos/auditoría se
+  define por separado de la de checkpoints conversacionales.
 - **Qdrant:** índice derivado, reconstruible desde fuentes/catálogo y no
   autoritativo.
 - **Worker asíncrono:** ingesta/refresh de comercios y scraping; con límites de
@@ -146,6 +148,10 @@ fuente.
 - IDs de merchant, producto, variante y oferta fuente.
 - Título/atributos presentados, cantidad y disponibilidad observada.
 - Precio, moneda, envío, impuestos y total en la moneda de origen.
+- Si se acuerda una comisión de plataforma, su pagador, base, importe,
+  redondeo y destinatario se muestran y quedan ligados al snapshot aprobado.
+  El diagrama inicial no define esa comisión; ver
+  `stellar-payments-plan.md`.
 - Si el pago requiere USDC: cantidad USDC, cotización FX, proveedor/origen,
   timestamp, expiración y regla de redondeo explícitos. No convertir con el LLM
   ni mantener el campo sugerido `totalAmountUSDC` sin fuente de tipo de cambio.
@@ -189,7 +195,8 @@ Separar dos usos que no deben compartir semántica:
   reales del proveedor elegido (por ejemplo, autorizar/capturar, liquidar,
   consultar, cancelar o reembolsar). Stripe/PSP o un payment handler UCP puede
   participar. No asumir que x402 implementa tarjeta, devolución, disputa,
-  fulfillment o impuestos.
+  fulfillment o impuestos. Para el comercio piloto que acepte USDC en Stellar,
+  usar el adaptador de pago descrito en `stellar-payments-plan.md`.
 - **Cobro por consulta/recurso digital HTTP:** x402 puede proteger rutas
   seleccionadas y cobrar por request. `@x402/stellar` `exact` en Stellar
   testnet es candidato inicial, independiente de los pagos Stripe/base. No
@@ -198,14 +205,14 @@ Separar dos usos que no deben compartir semántica:
 
 El adaptador presenta sus capacidades y límites; el caso de uso rechaza un
 checkout si el método no cubre el ciclo requerido. Ninguna clave privada se
-expone al grafo/LLM ni se guarda en MongoDB/PostgreSQL; las credenciales viven
+expone al grafo/LLM ni se guarda en MongoDB; las credenciales viven
 en el gestor de secretos del runtime y el firmante debe poder limitarse por
 red, destinatario, activo, monto y expiración.
 
 ## DTOs iniciales propuestos
 
-Los ejemplos de `pautas de diseño.md` son la guía conceptual. Antes de
-implementar, convertirlos en schemas Zod con convenciones de dinero seguras.
+Antes de implementar, convertir estos DTOs en schemas Zod con convenciones de
+dinero seguras.
 
 - `ShoppingIntent`: consulta, presupuesto máximo y moneda, país/ciudad de
   destino, marca/modelo y restricciones explícitas.
@@ -218,8 +225,9 @@ implementar, convertirlos en schemas Zod con convenciones de dinero seguras.
 - `ShoppingState`: estado durable de LangGraph y referencias de negocio, sin
   secretos ni credenciales de pago.
 
-Los nombres y rutas HTTP siguen siendo borrador; por SDD, `specs/openapi.json`
-se cambia antes de implementar endpoints públicos.
+Los nombres y rutas HTTP del agente y checkout siguen siendo borrador; por SDD,
+`specs/openapi.json` se cambia antes de implementar endpoints públicos. Las
+rutas internas iniciales para intents de pago ya están declaradas allí.
 
 ## MVP recomendado y criterios
 
@@ -245,12 +253,13 @@ se cambia antes de implementar endpoints públicos.
 
 ### Fase 2: proveedor de pago piloto
 
-Implementar un proveedor solo después de decidir settlement del merchant y
-probar la ruta oficial del proveedor en sandbox/testnet. Para Stellar x402:
-`exact`, testnet, allowlist de activo/red/receptor, presupuesto por sesión y
-pruebas de firma, replay, expiración, importe, red, fallo de facilitador y
-conciliación. Tarjeta/Stripe es una integración separada y no implica settlement
-en Stellar.
+La primera etapa del backend para Stellar Testnet está implementada: quote
+aprobada, intent idempotente, XDR clásico, firma humana y conciliación. Para
+completar el piloto falta conectar checkout/productor de cotizaciones y
+frontend-wallet, y probarlo end-to-end tras decidir settlement del merchant.
+Si se exige el límite on-chain del diagrama, añadir y probar la smart account
+Soroban. x402 `exact` queda para cobros HTTP por recurso; tarjeta/Stripe es otra
+integración y no implica settlement en Stellar.
 
 ### Criterios de salida antes de producción
 
@@ -280,8 +289,9 @@ en Stellar.
    fulfillment.
 3. ¿Quién contrata al merchant y quién responde legal/comercialmente ante el
    comprador? No construir marketplace, escrow ni custodia por inferencia.
-4. ¿Qué checkout/payment handlers acepta el merchant piloto y cómo recibirá
-   dinero? Dejar la decisión de Stripe vs Stellar y moneda liquidada abierta.
+4. El piloto técnico elegido es USDC en Stellar Testnet. Falta acordar qué
+   checkout acepta el merchant, settlement de producción y quién cubre fees,
+   impuestos, devolución y soporte.
 5. ¿Se requiere auto-compra futura? Definir límites por merchant/categoría,
    presupuesto por compra y ventana, aprobación por incremento, revocación y
    auditoría antes de habilitarla.
@@ -292,18 +302,19 @@ en Stellar.
 
 ## Dependencias existentes y faltantes
 
-Ya instaladas: LangGraph, checkpointer PostgreSQL, LLM OpenAI-compatible,
-ScrapeGraph, Qdrant, `pg`, Stripe y x402 (Fastify/fetch/Stellar/EVM).
+Ya instaladas: LangGraph, checkpointer PostgreSQL heredado, LLM
+OpenAI-compatible, ScrapeGraph, Qdrant, `pg`, Stripe, Stellar SDK, x402
+(Fastify/fetch/Stellar/EVM) y `mongodb`. La presencia del checkpointer y `pg` no
+cambia la decisión de MongoDB para el diseño de comercio.
 
-Faltan para la arquitectura de las pautas: driver `mongodb`,
-`@langchain/langgraph-checkpoint-mongodb`, worker de ingesta, servicios/repos
-transaccionales de catálogo y comercio, DTOs Zod, adaptadores de fuente,
-checkout/payment/fulfillment, eventos y los contratos OpenAPI. Instalar una
-dependencia no habilita la función ni prueba compatibilidad.
+Faltan para esta arquitectura: `@langchain/langgraph-checkpoint-mongodb`, worker
+de ingesta, servicios/repos de catálogo y comercio, adaptadores de fuente,
+checkout y fulfillment, eventos y el flujo integral con la wallet. Los DTOs de
+pago iniciales y sus rutas internas sí están declarados en OpenAPI. Instalar
+una dependencia no habilita la función ni prueba compatibilidad.
 
 ## Referencias primarias
 
-- [Pautas de diseño del proyecto](../pautas%20de%20dise%C3%B1o.md).
 - [UCP: repositorio y capacidades](https://github.com/Universal-Commerce-Protocol/ucp).
 - [UCP: Checkout](https://ucp.dev/specification/shopping/checkout/).
 - [Shopify Global Catalog MCP](https://shopify.dev/docs/agents/catalog/global-catalog).

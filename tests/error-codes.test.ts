@@ -44,17 +44,19 @@ describe("error code registry", () => {
 		}
 	});
 
-	test("HTTP-emittable catalog is CORE only", () => {
+	test("registered domains are CORE and PAY, with startup-only CORE configuration error", () => {
 		const nonEmittableCoreCodes = Object.values(errorCodes)
 			.filter((definition) => !definition.emittable)
 			.map((definition) => definition.code);
 
 		expect(nonEmittableCoreCodes).toEqual(["SVC-CORE-9002"]);
 		expect(
-			Object.values(errorRegistry).every((definition) =>
-				definition.code.startsWith("SVC-CORE-"),
+			new Set(
+				Object.values(errorRegistry).map(
+					(definition) => definition.code.split("-")[1],
+				),
 			),
-		).toBe(true);
+		).toEqual(new Set(["CORE", "PAY"]));
 	});
 
 	test("behavior is complete and agent hints are closed", () => {

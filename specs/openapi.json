@@ -20,6 +20,9 @@
 		},
 		{
 			"name": "items"
+		},
+		{
+			"name": "payments"
 		}
 	],
 	"paths": {
@@ -262,6 +265,493 @@
 					}
 				]
 			}
+		},
+		"/v1/payment-intents": {
+			"post": {
+				"operationId": "createPaymentIntent",
+				"tags": ["payments"],
+				"summary": "Crear intent desde una cotización aprobada",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"description": "ID del usuario autenticado, afirmado por el BFF interno de confianza.",
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						}
+					},
+					{
+						"name": "Idempotency-Key",
+						"in": "header",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 8,
+							"maxLength": 128
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreatePaymentIntentRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Intent creado con XDR sin firmar",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentIntent"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Token de servicio ausente o inválido",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "El principal no puede pagar esta cotización",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Cotización aprobada no encontrada",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Cotización vencida o idempotencia conflictiva",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Solicitud inválida",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "MongoDB o Stellar no disponible",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Pagos deshabilitados",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"200": {
+						"description": "Intent existente devuelto por reintento idempotente",
+						"headers": {
+							"X-Idempotent-Replay": {
+								"schema": {
+									"type": "string",
+									"const": "true"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentIntent"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
+		},
+		"/v1/payment-intents/{intentId}": {
+			"get": {
+				"operationId": "getPaymentIntent",
+				"tags": ["payments"],
+				"summary": "Consultar y conciliar estado del intent",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"description": "ID del usuario autenticado, afirmado por el BFF interno de confianza.",
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						}
+					},
+					{
+						"name": "intentId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Intent y último estado reconciliado",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentIntent"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Token de servicio ausente o inválido",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "El principal no puede consultar este intent",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Intent no encontrado",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Resultado pendiente de conciliación",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "Stellar no disponible",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Pagos deshabilitados",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
+		},
+		"/v1/payment-intents/{intentId}/submission": {
+			"post": {
+				"operationId": "submitPaymentIntentTransaction",
+				"tags": ["payments"],
+				"summary": "Verificar y enviar XDR firmado por la wallet",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"description": "ID del usuario autenticado, afirmado por el BFF interno de confianza.",
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						}
+					},
+					{
+						"name": "intentId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SubmitPaymentTransactionRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"202": {
+						"description": "Transacción enviada; consultar estado hasta conciliación",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentIntent"
+								}
+							}
+						}
+					},
+					"200": {
+						"description": "Resultado terminal del intento (confirmed o failed)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentIntent"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Token de servicio ausente o inválido",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "El principal no puede enviar este intent",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Intent no encontrado",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "XDR inválido, estado incompatible o resultado incierto",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Solicitud inválida",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "Stellar no disponible",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Pagos deshabilitados",
+						"headers": {
+							"x-error-code": {
+								"$ref": "#/components/headers/ErrorCodeHeader"
+							}
+						},
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
 		}
 	},
 	"components": {
@@ -462,13 +952,164 @@
 					}
 				},
 				"additionalProperties": false
+			},
+			"CreatePaymentIntentRequest": {
+				"type": "object",
+				"required": ["quoteId"],
+				"properties": {
+					"quoteId": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 128
+					}
+				},
+				"additionalProperties": false
+			},
+			"SubmitPaymentTransactionRequest": {
+				"type": "object",
+				"required": ["signedXdr"],
+				"properties": {
+					"signedXdr": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100000
+					}
+				},
+				"additionalProperties": false
+			},
+			"PaymentLeg": {
+				"type": "object",
+				"required": ["purpose", "payTo", "amountAtomic"],
+				"properties": {
+					"purpose": {
+						"type": "string",
+						"enum": ["merchant", "platform"]
+					},
+					"payTo": {
+						"type": "string",
+						"pattern": "^G[A-Z2-7]{55}$"
+					},
+					"amountAtomic": {
+						"type": "string",
+						"pattern": "^[1-9][0-9]*$"
+					}
+				},
+				"additionalProperties": false
+			},
+			"PaymentIntent": {
+				"type": "object",
+				"required": [
+					"intentId",
+					"quoteId",
+					"orderId",
+					"quoteHash",
+					"status",
+					"networkPassphrase",
+					"payerAddress",
+					"assetCode",
+					"assetIssuer",
+					"assetDecimals",
+					"totalAmountAtomic",
+					"paymentLegs",
+					"expiresAt",
+					"unsignedXdr",
+					"transactionHash",
+					"ledger",
+					"createdAt",
+					"updatedAt"
+				],
+				"properties": {
+					"intentId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"quoteId": {
+						"type": "string"
+					},
+					"quoteHash": {
+						"type": "string",
+						"pattern": "^[a-f0-9]{64}$"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"awaiting_signature",
+							"submitting",
+							"submitted",
+							"confirmed",
+							"failed",
+							"expired"
+						]
+					},
+					"networkPassphrase": {
+						"type": "string"
+					},
+					"payerAddress": {
+						"type": "string",
+						"pattern": "^G[A-Z2-7]{55}$"
+					},
+					"assetCode": {
+						"const": "USDC"
+					},
+					"assetIssuer": {
+						"type": "string",
+						"pattern": "^G[A-Z2-7]{55}$"
+					},
+					"assetDecimals": {
+						"type": "integer",
+						"const": 7
+					},
+					"totalAmountAtomic": {
+						"type": "string",
+						"pattern": "^[1-9][0-9]*$"
+					},
+					"paymentLegs": {
+						"type": "array",
+						"minItems": 1,
+						"maxItems": 2,
+						"items": {
+							"$ref": "#/components/schemas/PaymentLeg"
+						}
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"unsignedXdr": {
+						"type": ["string", "null"]
+					},
+					"transactionHash": {
+						"type": ["string", "null"],
+						"pattern": "^[a-f0-9]{64}$"
+					},
+					"ledger": {
+						"type": ["integer", "null"],
+						"minimum": 1
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"memo": {
+						"type": "string",
+						"maxLength": 28
+					},
+					"orderId": {
+						"type": "string"
+					}
+				},
+				"additionalProperties": false
 			}
 		},
 		"securitySchemes": {
 			"serviceToken": {
 				"type": "http",
 				"scheme": "bearer",
-				"description": "Optional service-to-service token. Required on protected routes when SERVICE_TOKEN is configured."
+				"description": "Bearer service-to-service token. Required on payment routes and when SERVICE_TOKEN is configured on protected routes."
 			}
 		}
 	}

@@ -16,5 +16,7 @@ Los errores publicos siguen la taxonomia v1 definida en
 
 ## Alcance actual
 
-Esta base implementa codigos `CORE` emitibles. Dominios adicionales se agregan
-con `defineErrorCode` dentro del rango reservado del dominio.
+Esta base implementa códigos emitibles `CORE` y `PAY`. Los errores de pagos
+describen cotización/intent denegado sin incluir importes, direcciones ni datos
+del proveedor. Agrega códigos con `defineErrorCode` dentro del rango reservado
+del dominio y actualiza `docs/Taxonomia_Errores_v1.md` junto con su prueba.

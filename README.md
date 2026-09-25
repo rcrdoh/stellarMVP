@@ -2,8 +2,15 @@
 
 Servicio HTTP para Stellar MVP, basado en Bun, TypeScript estricto, Fastify y Zod.
 El endpoint `/api/hello_api` informa si `STELLAR_NETWORK` esta configurada sin
-exponer su valor. El SDK Stellar queda disponible para integraciones on-chain
-que se definan posteriormente.
+exponer su valor. El SDK Stellar construye, valida y envía intents de pago
+clásicos en Testnet cuando la feature está habilitada.
+
+El primer flujo backend de pago USDC con cuenta Stellar clásica está
+implementado para Testnet y permanece deshabilitado por defecto. Genera un
+intent desde una cotización aprobada, devuelve un XDR para firma humana, valida
+el XDR firmado y concilia el resultado. El repo aún no contiene el frontend de
+Freighter ni las smart accounts Soroban del diagrama. Consulta
+`docs/agentic-commerce-design.md` y `docs/stellar-payments-plan.md`.
 
 ## Stack
 
@@ -11,6 +18,8 @@ que se definan posteriormente.
 - TypeScript ESM estricto
 - Fastify
 - Zod
+- MongoDB Node.js Driver
+- `@stellar/stellar-sdk`
 - Biome
 - `bun test`
 
@@ -115,8 +124,28 @@ por Bun.
 
 Las capas `database`, `bucket` y `cache` existen como integraciones opcionales.
 Por defecto `DATABASE_ENABLED`, `BUCKET_ENABLED` y `CACHE_ENABLED` estan en
-`false`; una capa deshabilitada no se conecta ni cuenta para readiness. Para
-Postgres en TypeScript, el patron documentado es Prisma Client.
+`false`; una capa deshabilitada no se conecta ni cuenta para readiness. El
+placeholder `database.ts` todavía no abre una conexión real.
+
+El placeholder `database.ts` sigue independiente. Para habilitar pagos, configura
+`PAYMENTS_ENABLED=true`, `MONGODB_URI`, `MONGODB_DATABASE`, `STELLAR_NETWORK=testnet`, `STELLAR_USDC_ISSUER`
+y `SERVICE_TOKEN` en el entorno. El servidor conecta MongoDB al iniciar; si la
+configuración o la conexión falla, no arranca. Nunca habilita Mainnet.
+
+El checkout interno exige `Authorization: Bearer <SERVICE_TOKEN>` y el header
+`x-principal-id` afirmado por un BFF autenticado. El cliente nunca recibe el
+token de servicio. El BFF obtiene una cotización aprobada y envía solo su
+`quoteId`; monto, activo, red y destinatarios se leen de MongoDB. La interfaz
+web debe mostrar el resumen y pedir a Freighter que firme el `unsignedXdr`,
+luego enviar el `signedXdr` al BFF para que lo entregue al backend.
+
+Los pagos se crean únicamente desde documentos aprobados de
+`approved_quotes`. La comisión no se calcula en el servicio; solo se usa si ya
+forma parte de `paymentLegs` de la cotización aprobada. Ver
+`docs/stellar-payments-plan.md` para el esquema y los pendientes de producto.
+
+MongoDB también es la decisión acordada para los checkpoints de LangGraph, pero
+el checkpointer aún no está conectado en este repositorio.
 
 `SERVICE_TOKEN` es opcional. Si esta vacio, las rutas `items` no requieren
 autenticacion. Si esta configurado, `POST /v1/items` y `GET /v1/items/{itemId}`

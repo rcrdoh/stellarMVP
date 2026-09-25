@@ -1,11 +1,9 @@
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { type Env, env } from "../config/env.js";
-import { errorCodes } from "../domain/error-codes.js";
-import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
 import type { ItemService } from "../services/item-service.js";
+import { requireOptionalServiceToken } from "./auth.js";
+import type { PaymentRuntime } from "./payment-routes.js";
 import type { AppIntegrations } from "./server.js";
 
 declare const Bun: {
@@ -28,41 +26,12 @@ function optionalIntegrationStatus(
 	return ready ? "ready" : "degraded";
 }
 
-function serviceTokenFromHeader(request: FastifyRequest): string | undefined {
-	const header = request.headers.authorization;
-	if (header === undefined || !header.startsWith("Bearer ")) {
-		return undefined;
-	}
-	return header.slice("Bearer ".length);
-}
-
-function tokensMatch(actual: string, expected: string): boolean {
-	const actualBuffer = Buffer.from(actual);
-	const expectedBuffer = Buffer.from(expected);
-	return (
-		actualBuffer.length === expectedBuffer.length &&
-		timingSafeEqual(actualBuffer, expectedBuffer)
-	);
-}
-
-function requireServiceToken(request: FastifyRequest, runtimeEnv: Env): void {
-	if (runtimeEnv.SERVICE_TOKEN.length === 0) {
-		return;
-	}
-	const token = serviceTokenFromHeader(request);
-	if (token === undefined) {
-		throw new AppError(errorCodes.CREDENTIALS_MISSING);
-	}
-	if (!tokensMatch(token, runtimeEnv.SERVICE_TOKEN)) {
-		throw new AppError(errorCodes.CREDENTIALS_INVALID_OR_EXPIRED);
-	}
-}
-
 export function registerRoutes(
 	app: FastifyInstance,
 	itemService: ItemService,
 	runtimeEnv: Env = env,
 	integrations?: AppIntegrations,
+	payments?: PaymentRuntime,
 ): void {
 	app.get("/", async (_request, reply) => reply.redirect("/docs"));
 
@@ -91,7 +60,11 @@ export function registerRoutes(
 			runtimeEnv.CACHE_ENABLED && integrations
 				? await integrations.cache.isReady()
 				: true;
-		const ready = storeReady && databaseReady && bucketReady && cacheReady;
+		const paymentsReady = runtimeEnv.PAYMENTS_ENABLED
+			? ((await payments?.isReady()) ?? false)
+			: true;
+		const ready =
+			storeReady && databaseReady && bucketReady && cacheReady && paymentsReady;
 
 		return {
 			status: ready ? "ok" : "degraded",
@@ -108,19 +81,23 @@ export function registerRoutes(
 					bucketReady,
 				),
 				cache: optionalIntegrationStatus(runtimeEnv.CACHE_ENABLED, cacheReady),
+				payments: optionalIntegrationStatus(
+					runtimeEnv.PAYMENTS_ENABLED,
+					paymentsReady,
+				),
 			},
 		};
 	});
 
 	app.post("/v1/items", async (request, reply) => {
-		requireServiceToken(request, runtimeEnv);
+		requireOptionalServiceToken(request, runtimeEnv);
 		const input = createItemSchema.parse(request.body);
 		const item = await itemService.create(input);
 		return reply.code(201).send(item);
 	});
 
 	app.get("/v1/items/:itemId", async (request) => {
-		requireServiceToken(request, runtimeEnv);
+		requireOptionalServiceToken(request, runtimeEnv);
 		const params = request.params as { itemId: string };
 		return itemService.get(params.itemId);
 	});

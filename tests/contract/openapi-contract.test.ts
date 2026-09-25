@@ -136,7 +136,7 @@ describe("OpenAPI contract", () => {
 			type: "http",
 			scheme: "bearer",
 			description:
-				"Optional service-to-service token. Required on protected routes when SERVICE_TOKEN is configured.",
+				"Bearer service-to-service token. Required on payment routes and when SERVICE_TOKEN is configured on protected routes.",
 		});
 		expect(spec.paths?.["/v1/items"]?.post?.security).toEqual([
 			{ serviceToken: [] },

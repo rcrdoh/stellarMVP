@@ -29,7 +29,31 @@ describe("config file loading", () => {
 		expect(settings.DATABASE_ENABLED).toBe(true);
 		expect(settings.BUCKET_ENABLED).toBe(true);
 		expect(settings.CACHE_ENABLED).toBe(true);
+		expect(settings.PAYMENTS_ENABLED).toBe(false);
 		expect(settings.SERVICE_TOKEN).toBe("");
+	});
+
+	test("payment activation requires a secret, MongoDB, and Testnet", () => {
+		expect(
+			envSchema.safeParse({
+				PAYMENTS_ENABLED: true,
+				MONGODB_URI: "",
+				SERVICE_TOKEN: "",
+				STELLAR_NETWORK: "",
+			}).success,
+		).toBe(false);
+
+		const settings = envSchema.parse({
+			PAYMENTS_ENABLED: true,
+			MONGODB_URI: "mongodb://localhost:27017/stellar-test",
+			SERVICE_TOKEN: "test-token",
+			STELLAR_NETWORK: "testnet",
+			STELLAR_USDC_ISSUER: `G${"A".repeat(55)}`,
+		});
+		expect(settings.PAYMENTS_ENABLED).toBe(true);
+		expect(
+			envSchema.parse({ STELLAR_NETWORK: "mainnet" }).STELLAR_NETWORK,
+		).toBe("mainnet");
 	});
 
 	test("toml settings load from custom path", () => {
