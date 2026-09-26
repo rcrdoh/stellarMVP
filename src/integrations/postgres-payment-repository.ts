@@ -102,7 +102,8 @@ export class PostgresPaymentRepository
 	}
 
 	async saveApprovedQuote(quote: QuoteInput): Promise<void> {
-		const validated = approvedPaymentQuoteSchema.parse(quote);
+		const { approvedAt, ...quoteData } = quote;
+		const validated = approvedPaymentQuoteSchema.parse(quoteData);
 		await this.pool.query(
 			`INSERT INTO commerce_quotes
 			 (quote_id, order_id, session_id, principal_id, quote_hash, status,
@@ -124,7 +125,7 @@ export class PostgresPaymentRepository
 				validated.assetDecimals,
 				JSON.stringify(validated.paymentLeg),
 				validated.expiresAt,
-				quote.approvedAt,
+				approvedAt,
 			],
 		);
 		await this.pool.query(

@@ -79,6 +79,26 @@ curl http://127.0.0.1:3000/docs
 La ruta raiz `/` redirige a `/docs`, donde se sirve la referencia interactiva
 del API.
 
+### Consola de pruebas
+
+`/app` sirve una consola web mínima para probar health checks, búsqueda del
+agente, payment intents y el checkout ACP sin instalar un cliente adicional:
+
+```bash
+open http://127.0.0.1:3000/app
+```
+
+La consola no guarda tokens ni claves privadas. El payment intent entrega un
+XDR sin firmar; la firma debe realizarse en una wallet Stellar de prueba y el
+XDR firmado se pega manualmente en la consola. Para usar una API remota, el
+servicio remoto debe permitir el origen del navegador mediante CORS.
+
+La consola incluye conexión opcional con la extensión [Freighter](https://github.com/stellar/freighter-developer-docs/blob/main/extension/connecting.md).
+Pulsa **Conectar Freighter** con la wallet configurada en la misma red que la
+API; la dirección pública se copia a `payerAddress` y se usa para preparar el
+micropago. La clave secreta nunca sale de la extensión. Si Freighter no está
+instalado, puedes introducir manualmente una dirección pública Stellar.
+
 7. Antes de abrir cambios, ejecuta:
 
 ```bash
@@ -144,6 +164,12 @@ Manual: `docs/docker.md`.
 ```bash
 docker compose up --build -d
 ```
+
+El compose local levanta PostgreSQL (`5432`), Redis (`6379`) y MongoDB
+(`27017`). La aplicación queda en `http://127.0.0.1:8010`, con pagos de prueba
+habilitados en Stellar Testnet y un importe fijo de `0.01` USDC. El endpoint
+`POST /v1/payment-quotes` recibe el `payerAddress` público de la wallet y usa
+`STELLAR_PAYMENT_PAY_TO` como receptor.
 
 ## Render
 

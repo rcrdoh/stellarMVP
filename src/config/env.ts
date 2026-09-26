@@ -27,6 +27,8 @@ export const envSchema = z
 		PAYMENTS_ENABLED: z.coerce.boolean().default(false),
 		DATABASE_URL: z.string().default(""),
 		REDIS_URL: z.string().default(""),
+		MONGODB_URI: z.string().default(""),
+		MONGODB_DATABASE: z.string().min(1).default("stellarmvp"),
 		QDRANT_URL: z.string().default(""),
 		QDRANT_API_KEY: z.string().default(""),
 		QDRANT_COLLECTION: z.string().min(1).default("items"),
@@ -42,6 +44,10 @@ export const envSchema = z
 			.default("https://horizon-testnet.stellar.org"),
 		STELLAR_SOURCE_SECRET: z.string().default(""),
 		STELLAR_USDC_ISSUER: z.string().default(""),
+		STELLAR_PAYMENT_PAY_TO: z
+			.string()
+			.default("GAZTW4SJ3E5BZES4IDH3ITVFNUTVMOFO4KGLI7XSG73KEDLOCPPEEEX4"),
+		STELLAR_PAYMENT_AMOUNT_USDC: z.string().default("0.01"),
 		STELLAR_MAX_FEE_PER_OPERATION_STROOPS: z.coerce
 			.number()
 			.int()
@@ -92,6 +98,24 @@ export const envSchema = z
 				code: "custom",
 				path: ["STELLAR_USDC_ISSUER"],
 				message: "STELLAR_USDC_ISSUER must be a Stellar account.",
+			});
+		}
+		if (!/^G[A-Z2-7]{55}$/.test(settings.STELLAR_PAYMENT_PAY_TO)) {
+			context.addIssue({
+				code: "custom",
+				path: ["STELLAR_PAYMENT_PAY_TO"],
+				message: "STELLAR_PAYMENT_PAY_TO must be a Stellar account.",
+			});
+		}
+		if (
+			!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,7})?$/.test(
+				settings.STELLAR_PAYMENT_AMOUNT_USDC,
+			)
+		) {
+			context.addIssue({
+				code: "custom",
+				path: ["STELLAR_PAYMENT_AMOUNT_USDC"],
+				message: "STELLAR_PAYMENT_AMOUNT_USDC must use up to 7 decimals.",
 			});
 		}
 		if (!settings.STELLAR_HORIZON_URL.startsWith("https://")) {

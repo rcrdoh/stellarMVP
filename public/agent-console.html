@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="description"
+			content="Consola local para probar Agent Commerce y payment intents de Stellar MVP"
+		/>
+		<title>Stellar MVP · Agent Console</title>
+		<script src="https://unpkg.com/@stellar/freighter-api@6.0.1/build/index.min.js"></script>
+		<link rel="stylesheet" href="/app.css" />
+	</head>
+	<body>
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">STELLAR MVP</p>
+				<h1>Agent Console</h1>
+				<p class="subtitle">
+					Prueba búsquedas, intents de pago y checkout desde el navegador.
+				</p>
+			</div>
+			<div class="topbar-links">
+				<a href="/docs" target="_blank" rel="noreferrer">API docs</a>
+				<a href="/openapi.json" target="_blank" rel="noreferrer">OpenAPI</a>
+			</div>
+		</header>
+
+		<main class="layout">
+			<section class="card setup-card">
+				<div class="card-heading">
+					<div>
+						<p class="eyebrow">01 · CONEXIÓN</p>
+						<h2>Configura la sesión</h2>
+					</div>
+					<span id="connection-state" class="status-pill">sin probar</span>
+				</div>
+				<div class="field-grid">
+					<label>
+						<span>API base</span>
+						<input id="api-base" type="url" placeholder="https://dermi-znuq.onrender.com" />
+					</label>
+					<label>
+						<span>Principal ID</span>
+						<input id="principal-id" value="agent-console" autocomplete="off" />
+					</label>
+					<label class="wide-field">
+						<span>Service / agent token</span>
+						<input id="service-token" type="password" autocomplete="off" placeholder="Solo para pruebas locales" />
+					</label>
+				</div>
+				<div class="actions">
+					<button id="connect-wallet-button" class="button primary" type="button">Conectar Freighter</button>
+					<button id="health-button" class="button secondary" type="button">Probar health</button>
+					<span id="wallet-state" class="status-pill">wallet no conectada</span>
+					<p class="hint">El token se mantiene únicamente en memoria de esta pestaña.</p>
+				</div>
+			</section>
+
+			<section class="card x402-card">
+				<div class="card-heading">
+					<div>
+						<p class="eyebrow">01B · X402 DISCOVERY</p>
+						<h2>Inspeccionar un recurso pagado</h2>
+					</div>
+					<span class="method post">POST</span>
+				</div>
+				<p class="hint">
+					Envía una solicitud sin pago para comprobar que el servicio responde 402 y publica sus requisitos. Esta acción no firma ni liquida fondos.
+				</p>
+				<label>
+					<span>URL del recurso</span>
+					<input id="resource-url" type="url" value="https://dermi-znuq.onrender.com/check-skincare-ingredients" />
+				</label>
+				<label>
+					<span>Body JSON</span>
+					<textarea id="resource-body" rows="3">{"ingredients":["niacinamide","salicylic acid"]}</textarea>
+				</label>
+				<button id="probe-x402-button" class="button primary" type="button">Enviar sin pago</button>
+			</section>
+
+			<div class="columns">
+				<section class="card">
+					<div class="card-heading">
+						<div>
+							<p class="eyebrow">02 · AGENT SEARCH</p>
+							<h2>Buscar en Qdrant</h2>
+						</div>
+						<span class="method post">POST</span>
+					</div>
+					<label>
+						<span>Consulta</span>
+						<textarea id="search-query" rows="3">ingredientes hidratantes para piel sensible</textarea>
+					</label>
+					<div class="field-grid compact">
+						<label>
+							<span>Límite</span>
+							<input id="search-limit" type="number" min="1" max="50" value="5" />
+						</label>
+						<label>
+							<span>Merchant (opcional)</span>
+							<input id="search-merchant" placeholder="canonical" />
+						</label>
+					</div>
+					<button id="search-button" class="button primary" type="button">Ejecutar búsqueda</button>
+				</section>
+
+				<section class="card">
+					<div class="card-heading">
+						<div>
+							<p class="eyebrow">03 · PAYMENT INTENT</p>
+							<h2>Crear intento de wallet</h2>
+						</div>
+						<span class="method post">POST</span>
+					</div>
+					<label>
+						<span>Payer address público</span>
+						<input id="payer-address" placeholder="G..." autocomplete="off" />
+					</label>
+					<label>
+						<span>Quote ID aprobada</span>
+						<input id="quote-id" value="quote-1" autocomplete="off" />
+					</label>
+					<label>
+						<span>Idempotency key</span>
+						<input id="idempotency-key" autocomplete="off" placeholder="payment-demo-001" />
+					</label>
+					<div class="actions stacked-mobile">
+						<button id="prepare-payment-button" class="button primary" type="button">Preparar micropago</button>
+						<button id="create-intent-button" class="button primary" type="button">Crear intent</button>
+						<button id="refresh-intent-button" class="button secondary" type="button">Consultar estado</button>
+					</div>
+					<div class="intent-meta">
+						<span>Intent actual</span>
+						<strong id="intent-id">—</strong>
+					</div>
+				</section>
+			</div>
+
+			<section class="card signing-card">
+				<div class="card-heading">
+					<div>
+						<p class="eyebrow">04 · FIRMA</p>
+						<h2>Firma y envía la transacción</h2>
+					</div>
+					<span class="method post">POST</span>
+				</div>
+				<p class="hint">
+					El backend entrega un XDR sin firmar. Fírmalo con tu wallet Stellar de prueba y pega aquí el XDR firmado. Nunca introduzcas una clave secreta en esta página.
+				</p>
+				<label>
+					<span>Unsigned XDR</span>
+					<textarea id="unsigned-xdr" rows="4" readonly placeholder="Aparecerá al crear el intent"></textarea>
+				</label>
+				<label>
+					<span>Signed XDR</span>
+					<textarea id="signed-xdr" rows="4" placeholder="Pega el XDR firmado por tu wallet"></textarea>
+				</label>
+				<button id="submit-intent-button" class="button primary" type="button">Enviar transacción firmada</button>
+			</section>
+
+			<section class="card">
+				<div class="card-heading">
+					<div>
+						<p class="eyebrow">05 · ACP CHECKOUT</p>
+						<h2>Probar checkout existente</h2>
+					</div>
+					<span class="method post">POST</span>
+				</div>
+				<div class="field-grid">
+					<label>
+						<span>Item ID</span>
+						<input id="checkout-item-id" placeholder="UUID del item" />
+					</label>
+					<label>
+						<span>Monto USDC</span>
+						<input id="checkout-amount" value="0.01" inputmode="decimal" />
+					</label>
+					<label class="wide-field">
+						<span>Destino Stellar</span>
+						<input id="checkout-destination" placeholder="G..." autocomplete="off" />
+					</label>
+				</div>
+				<label>
+					<span>X-402-Payment-Token</span>
+					<input id="checkout-payment-token" type="password" autocomplete="off" placeholder="Token emitido por tu flujo ACP" />
+				</label>
+				<button id="checkout-button" class="button primary" type="button">Ejecutar checkout</button>
+			</section>
+
+			<section class="card output-card">
+				<div class="card-heading">
+					<div>
+						<p class="eyebrow">SALIDA</p>
+						<h2>Respuesta de la API</h2>
+					</div>
+					<button id="clear-output-button" class="button ghost" type="button">Limpiar</button>
+				</div>
+				<pre id="output" aria-live="polite">Listo. Configura la API base y ejecuta una operación.</pre>
+			</section>
+		</main>
+
+		<footer>
+			<p>Consola de pruebas · no almacena tokens ni claves privadas.</p>
+		</footer>
+		<script type="module" src="/app.js"></script>
+	</body>
+</html>

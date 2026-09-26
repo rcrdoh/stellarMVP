@@ -30,6 +30,25 @@ describe("OpenAPI contract", () => {
 		expect(response.body).toContain("openapi.json");
 	});
 
+	test("agent console serves the frontend assets", async () => {
+		const spec = await loadSpec();
+		const app = await buildServer();
+		const page = await app.inject({ method: "GET", url: "/app" });
+		const script = await app.inject({ method: "GET", url: "/app.js" });
+		const styles = await app.inject({ method: "GET", url: "/app.css" });
+
+		expect(spec.paths?.["/app"]?.get?.operationId).toBe("getAgentConsole");
+		expect(page.statusCode).toBe(200);
+		expect(page.headers["content-type"]).toContain("text/html");
+		expect(page.body).toContain("Agent Console");
+		expect(page.body).toContain("Conectar Freighter");
+		expect(page.body).toContain("freighter-api");
+		expect(script.statusCode).toBe(200);
+		expect(script.headers["content-type"]).toContain("javascript");
+		expect(styles.statusCode).toBe(200);
+		expect(styles.headers["content-type"]).toContain("text/css");
+	});
+
 	test("root redirects to the interactive API documentation", async () => {
 		const spec = await loadSpec();
 		const app = await buildServer();

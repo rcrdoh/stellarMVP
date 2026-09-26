@@ -23,6 +23,9 @@
 		},
 		{
 			"name": "agent"
+		},
+		{
+			"name": "frontend"
 		}
 	],
 	"paths": {
@@ -59,6 +62,57 @@
 								"schema": {
 									"type": "object"
 								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/app": {
+			"get": {
+				"operationId": "getAgentConsole",
+				"tags": ["frontend"],
+				"summary": "Serve the browser console for integration testing",
+				"responses": {
+					"200": {
+						"description": "Agent Console HTML",
+						"content": {
+							"text/html": {
+								"schema": { "type": "string" }
+							}
+						}
+					}
+				}
+			}
+		},
+		"/app.js": {
+			"get": {
+				"operationId": "getAgentConsoleScript",
+				"tags": ["frontend"],
+				"summary": "Serve the Agent Console browser script",
+				"responses": {
+					"200": {
+						"description": "Agent Console JavaScript",
+						"content": {
+							"application/javascript": {
+								"schema": { "type": "string" }
+							}
+						}
+					}
+				}
+			}
+		},
+		"/app.css": {
+			"get": {
+				"operationId": "getAgentConsoleStyles",
+				"tags": ["frontend"],
+				"summary": "Serve the Agent Console stylesheet",
+				"responses": {
+					"200": {
+						"description": "Agent Console CSS",
+						"content": {
+							"text/css": {
+								"schema": { "type": "string" }
 							}
 						}
 					}
@@ -475,6 +529,45 @@
 						"agentToken": []
 					}
 				]
+			}
+		},
+		"/v1/payment-quotes": {
+			"post": {
+				"operationId": "createPaymentQuote",
+				"tags": ["payments"],
+				"summary": "Create a short-lived approved USDC micropayment quote",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": { "type": "string", "minLength": 1, "maxLength": 128 }
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreatePaymentQuoteRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Approved quote for the configured micropayment",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentQuote" }
+							}
+						}
+					},
+					"400": { "$ref": "#/components/responses/ProblemResponse" },
+					"401": { "$ref": "#/components/responses/ProblemResponse" },
+					"503": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
 			}
 		},
 		"/v1/payment-intents": {
@@ -969,6 +1062,48 @@
 				},
 				"additionalProperties": false
 			}
+		},
+		"CreatePaymentQuoteRequest": {
+			"type": "object",
+			"required": ["payerAddress"],
+			"properties": {
+				"payerAddress": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" }
+			},
+			"additionalProperties": false
+		},
+		"PaymentQuote": {
+			"type": "object",
+			"required": [
+				"quoteId",
+				"orderId",
+				"sessionId",
+				"principalId",
+				"quoteHash",
+				"status",
+				"networkPassphrase",
+				"payerAddress",
+				"assetCode",
+				"assetIssuer",
+				"assetDecimals",
+				"paymentLeg",
+				"expiresAt"
+			],
+			"properties": {
+				"quoteId": { "type": "string" },
+				"orderId": { "type": "string", "format": "uuid" },
+				"sessionId": { "type": "string", "format": "uuid" },
+				"principalId": { "type": "string" },
+				"quoteHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+				"status": { "const": "approved" },
+				"networkPassphrase": { "type": "string" },
+				"payerAddress": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" },
+				"assetCode": { "const": "USDC" },
+				"assetIssuer": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" },
+				"assetDecimals": { "type": "integer", "const": 7 },
+				"paymentLeg": { "$ref": "#/components/schemas/PaymentLeg" },
+				"expiresAt": { "type": "string", "format": "date-time" }
+			},
+			"additionalProperties": false
 		},
 		"CreatePaymentIntentRequest": {
 			"type": "object",

@@ -98,6 +98,10 @@ export const createPaymentIntentRequestSchema = z.strictObject({
 	quoteId: z.string().min(1).max(128),
 });
 
+export const createPaymentQuoteRequestSchema = z.strictObject({
+	payerAddress: z.string().regex(publicKeyPattern),
+});
+
 export const submitPaymentTransactionRequestSchema = z.strictObject({
 	signedXdr: z.string().min(1).max(100_000),
 });

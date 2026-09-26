@@ -30,6 +30,11 @@ deben quedar separadas del grafo LangGraph y del transporte Fastify, siguiendo
 - PostgreSQL es la autoridad de `commerce_quotes`, `commerce_orders`,
   `payment_intents` y `payment_attempts`. MongoDB queda reservado al
   checkpointer de LangGraph; no se usa como ledger de pagos.
+- El endpoint `POST /v1/payment-quotes` crea una quote corta y aprobada para el
+  micropago de prueba. Recibe el `payerAddress` público de la wallet, fija el
+  importe configurado (`0.01` USDC por defecto) y fija el destinatario en
+  `STELLAR_PAYMENT_PAY_TO`; el cliente no puede cambiar el `payTo` ni el
+  importe dentro de la quote.
 - Componer las rutas de pago con las rutas actuales solo después de actualizar
   `specs/openapi.json`; conservar autenticación, idempotencia, expiración,
   verificación de firma y conciliación ante respuestas inciertas.
@@ -72,6 +77,9 @@ separadas.
 - `PAYMENTS_ENABLED=false` mantiene deshabilitada la superficie de wallet por
   defecto. Al habilitarla, solo acepta Testnet, USDC, un merchant leg y un
   `principalId` confiable entregado por el BFF.
+- El compose local levanta PostgreSQL, Redis y MongoDB. MongoDB sigue siendo la
+  dependencia reservada para checkpoints; la quote, el intent y la
+  conciliación permanecen en PostgreSQL.
 - El servicio de intents liquida el estado del intent y de la orden en una
   transacción PostgreSQL; una confirmación de Horizon no se expone como orden
   pagada si esa transacción no termina correctamente.

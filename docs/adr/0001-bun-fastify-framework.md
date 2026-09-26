@@ -46,8 +46,9 @@ Usar Bun, TypeScript estricto, Fastify y Zod como base:
   debe usar runtime Docker y construir desde ese archivo. Render usa el `CMD`
   del Dockerfile como comando de inicio, salvo que el Dashboard lo reemplace.
 - El `Dockerfile` fija Bun `1.4.0`, instala dependencias de produccion con
-  `bun install --frozen-lockfile --production`, copia `src`, `config` y
-  `specs`, y arranca con `bun run start`.
+  `bun install --frozen-lockfile --production`, copia `src`, `config`,
+  `public` y `specs`, y arranca con `bun run start`. `public` contiene los
+  assets de la consola de pruebas servida por Fastify.
 - El servicio HTTP debe escuchar en `0.0.0.0`. El contenedor declara
   `HOST=0.0.0.0` y `PORT=3000`; el puerto de servicio configurado en Render debe
   coincidir con el puerto donde escucha la app. Render usa `10000` por defecto

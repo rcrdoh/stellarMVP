@@ -14,12 +14,17 @@ docker build -t stellarmvp .
 docker compose up --build -d
 ```
 
-Levanta dos servicios:
+Levanta cuatro servicios:
 
-- `postgres`: Postgres 15 (imagen `postgres:15-alpine`) para el estado
-  transaccional de ordenes (`orders`). Datos persistidos en el volumen
-  `postgres-data`.
-- `stellarmvp`: la API, conectada a Postgres via `DATABASE_URL`.
+- `postgres`: Postgres 15 (`postgres:15-alpine`) para el estado transaccional.
+- `redis`: Redis 7 (`redis:7-alpine`) para cache y rate limiting.
+- `mongodb`: MongoDB 7 (`mongo:7-jammy`) para checkpoints del agente.
+- `stellarmvp`: la API, conectada a las dependencias por la red de Compose.
+
+Los contenedores reciben nombres y labels del entorno local: `stellarmvp-postgres-local`,
+`stellarmvp-redis-local`, `stellarmvp-mongodb-local` y `stellarmvp-api-local`.
+Puedes cambiar las imágenes o esos nombres mediante las variables `*_IMAGE`,
+`*_CONTAINER_NAME` y `APP_CONTAINER_NAME` del `.env`.
 
 El servicio queda publicado en `http://127.0.0.1:8010`. Postgres se publica en
 `127.0.0.1:5432` (usuario `stellar`, base `stellarmvp`).
@@ -51,6 +56,11 @@ El contenedor usa:
 - `CONFIG_FILE=config/settings.toml`
 - `DATABASE_URL` (requerido para el estado de ordenes; en Compose apunta a
   `postgres://stellar:password@postgres:5432/stellarmvp`)
+
+Cuando ejecutas Bun directamente en el host (`bun run dev`), usa las URLs
+publicadas por Docker en `127.0.0.1`: Postgres `5432`, Redis `6379` y MongoDB
+`27017`. No uses los nombres internos `postgres`, `redis` o `mongodb` desde el
+host; esos nombres solo resuelven dentro de la red de Compose.
 
 Puedes sobrescribir cualquier valor con `-e`.
 

@@ -15,6 +15,7 @@ import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
 import type { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
+import { readFrontendAsset } from "./frontend.js";
 import type { AppIntegrations } from "./server.js";
 
 declare const Bun: {
@@ -101,6 +102,24 @@ export function registerRoutes(
 	app.get("/api/hello_api", async () => ({
 		stellarNetworkConfigured: runtimeEnv.STELLAR_NETWORK.length > 0,
 	}));
+
+	app.get("/app", async (_request, reply) => {
+		return reply
+			.type("text/html; charset=utf-8")
+			.send(await readFrontendAsset("html"));
+	});
+
+	app.get("/app.css", async (_request, reply) => {
+		return reply
+			.type("text/css; charset=utf-8")
+			.send(await readFrontendAsset("css"));
+	});
+
+	app.get("/app.js", async (_request, reply) => {
+		return reply
+			.type("application/javascript; charset=utf-8")
+			.send(await readFrontendAsset("javascript"));
+	});
 
 	app.get("/v1/health/ready", async () => {
 		const storeReady = await itemService.isReady();

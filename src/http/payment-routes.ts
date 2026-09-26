@@ -2,8 +2,10 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { type Env, env } from "../config/env.js";
 import { errorCodes } from "../domain/error-codes.js";
 import { AppError } from "../domain/errors.js";
+import type { ApprovedPaymentQuote } from "../domain/payments.js";
 import {
 	createPaymentIntentRequestSchema,
+	createPaymentQuoteRequestSchema,
 	idempotencyKeySchema,
 	type PaymentIntent,
 	paymentIntentIdSchema,
@@ -39,6 +41,24 @@ function publicIntent(intent: PaymentIntent) {
 	};
 }
 
+function publicQuote(quote: ApprovedPaymentQuote) {
+	return {
+		quoteId: quote.quoteId,
+		orderId: quote.orderId,
+		sessionId: quote.sessionId,
+		principalId: quote.principalId,
+		quoteHash: quote.quoteHash,
+		status: quote.status,
+		networkPassphrase: quote.networkPassphrase,
+		payerAddress: quote.payerAddress,
+		assetCode: quote.assetCode,
+		assetIssuer: quote.assetIssuer,
+		assetDecimals: quote.assetDecimals,
+		paymentLeg: quote.paymentLeg,
+		expiresAt: quote.expiresAt,
+	};
+}
+
 function runtimeFor(
 	request: FastifyRequest,
 	runtimeEnv: Env,
@@ -59,6 +79,20 @@ export function registerPaymentRoutes(
 	runtimeEnv: Env = env,
 	runtime?: PaymentRuntime,
 ): void {
+	app.post("/v1/payment-quotes", async (request, reply) => {
+		if (!runtimeEnv.PAYMENTS_ENABLED || runtime === undefined) {
+			throw new AppError(errorCodes.SERVICE_UNAVAILABLE);
+		}
+		requirePaymentServiceToken(request, runtimeEnv);
+		const principalId = principalFromHeader(request);
+		const input = createPaymentQuoteRequestSchema.parse(request.body);
+		const quote = await runtime.createQuote({
+			principalId,
+			payerAddress: input.payerAddress,
+		});
+		return reply.code(201).send(publicQuote(quote));
+	});
+
 	app.post("/v1/payment-intents", async (request, reply) => {
 		const { service, principalId } = runtimeFor(request, runtimeEnv, runtime);
 		const header = request.headers["idempotency-key"];

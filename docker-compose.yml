@@ -1,6 +1,11 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: ${POSTGRES_IMAGE:-postgres:15-alpine}
+    container_name: ${POSTGRES_CONTAINER_NAME:-stellarmvp-postgres-local}
+    labels:
+      com.stellarmvp.environment: local
+      com.stellarmvp.component: database
+      com.stellarmvp.service: postgres
     environment:
       POSTGRES_USER: stellar
       POSTGRES_PASSWORD: password
@@ -16,17 +21,71 @@ services:
       retries: 5
       start_period: 10s
 
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    container_name: ${REDIS_CONTAINER_NAME:-stellarmvp-redis-local}
+    labels:
+      com.stellarmvp.environment: local
+      com.stellarmvp.component: cache
+      com.stellarmvp.service: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mongodb:
+    image: ${MONGODB_IMAGE:-mongo:7-jammy}
+    container_name: ${MONGODB_CONTAINER_NAME:-stellarmvp-mongodb-local}
+    labels:
+      com.stellarmvp.environment: local
+      com.stellarmvp.component: database
+      com.stellarmvp.service: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   stellarmvp:
     build:
       context: .
+    container_name: ${APP_CONTAINER_NAME:-stellarmvp-api-local}
+    labels:
+      com.stellarmvp.environment: local
+      com.stellarmvp.component: api
+      com.stellarmvp.service: stellarmvp
     environment:
       APP_ENV: prod
       HOST: 0.0.0.0
       PORT: 3000
       CONFIG_FILE: config/settings.toml
       DATABASE_URL: postgres://stellar:password@postgres:5432/stellarmvp
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: stellarmvp
+      PAYMENTS_ENABLED: "true"
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-local-dev-token}
+      STELLAR_NETWORK: testnet
+      STELLAR_USDC_ISSUER: GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+      STELLAR_PAYMENT_PAY_TO: GAZTW4SJ3E5BZES4IDH3ITVFNUTVMOFO4KGLI7XSG73KEDLOCPPEEEX4
+      STELLAR_PAYMENT_AMOUNT_USDC: "0.01"
+      STELLAR_HORIZON_URL: https://horizon-testnet.stellar.org
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     ports:
       - "8010:3000"
@@ -45,3 +104,5 @@ services:
 
 volumes:
   postgres-data:
+  redis-data:
+  mongodb-data:
