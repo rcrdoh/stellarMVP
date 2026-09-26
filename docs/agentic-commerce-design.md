@@ -1,8 +1,11 @@
-# Diseño propuesto: comercio asistido por agentes de IA
+# Diseño: comercio asistido por agentes de IA
 
-Estado: propuesta de diseño con el flujo interno inicial de Shopping Agent implementado. Este documento sigue como pauta
+Estado: diseño en implementación incremental; el flujo interno inicial de
+Shopping Agent y los payment intents Stellar Testnet ya están implementados
+por capas. Este documento sigue como pauta
 normativa `pautas de diseño.md`, que prevalece ante divergencias con otros
-documentos. No cambia todavía el contrato público ni habilita compras reales.
+documentos. La ampliación pública de payment intents queda limitada a Testnet;
+no habilita compras reales.
 
 ## Objetivo y límites
 
@@ -40,6 +43,9 @@ flowchart LR
   CO --> PAY[Payment Provider port]
   PAY --> STR[Stripe / PSP]
   PAY --> ST[Stellar x402]
+  CO --> WI[Wallet Payment Intent]
+  WI --> H[Horizon Testnet]
+  WI --> PG
   CO --> F[Fulfillment adapter]
   ING[Worker de ingesta] --> PG
   ING --> Q
@@ -84,6 +90,15 @@ haya confirmado la orden.
 Persistir el estado del grafo no convierte el grafo en fuente autoritativa de
 la transacción: órdenes, pagos y stock tienen registros propios en PostgreSQL o
 en el proveedor correspondiente.
+
+La superficie `POST /v1/payment-intents` y sus endpoints de consulta/envío
+implementan la ruta de wallet separada del checkout ACP x402. Recibe una quote
+aprobada por el servicio de compra, exige `SERVICE_TOKEN` más `x-principal-id`
+del BFF y solo construye pagos USDC en Stellar Testnet. El firmante conserva la
+clave privada: el servidor entrega XDR sin firmar, verifica el XDR firmado y
+reconcilia la transacción con Horizon antes de marcar la orden como pagada.
+PostgreSQL mantiene quotes, órdenes, intents y attempts; MongoDB solo mantiene
+checkpoints de LangGraph.
 
 ### Capa 2: Search Agent y catálogo
 

@@ -66,6 +66,18 @@ export const quoteSnapshotSchema = z
 		totalAmountMinor: z.number().int().nonnegative(),
 		currency: z.string().regex(/^[A-Z]{3}$/),
 		expiresAt: z.string().datetime(),
+		payment: z
+			.object({
+				networkPassphrase: z.string().min(1),
+				assetCode: z.literal("USDC"),
+				assetIssuer: z.string().regex(/^G[A-Z2-7]{55}$/),
+				assetDecimals: z.literal(7),
+				payerAddress: z.string().regex(/^G[A-Z2-7]{55}$/),
+				payTo: z.string().regex(/^G[A-Z2-7]{55}$/),
+				amountAtomic: z.string().regex(/^[1-9][0-9]*$/),
+			})
+			.strict()
+			.optional(),
 	})
 	.strict();
 export type QuoteSnapshot = z.infer<typeof quoteSnapshotSchema>;
@@ -90,6 +102,11 @@ export type ShoppingDecisionSignal = z.infer<
 
 export const shoppingStateSchema = z.object({
 	sessionId: z.string().min(1),
+	principalId: z.string().min(1),
+	payerAddress: z
+		.string()
+		.regex(/^G[A-Z2-7]{55}$/)
+		.nullable(),
 	status: agentStatusSchema,
 	intent: shoppingIntentSchema.nullable(),
 	candidates: z.array(merchantOfferSchema),
@@ -106,6 +123,12 @@ export const shoppingStartInputSchema = z
 	.object({
 		sessionId: z.string().min(1),
 		message: z.string().min(1).max(16_000),
+		principalId: z.string().min(1).default("local-dev"),
+		payerAddress: z
+			.string()
+			.regex(/^G[A-Z2-7]{55}$/)
+			.nullable()
+			.default(null),
 	})
 	.strict();
 export type ShoppingStartInput = z.infer<typeof shoppingStartInputSchema>;

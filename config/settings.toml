@@ -7,6 +7,7 @@ log_level = "info"
 database_enabled = false
 bucket_enabled = false
 cache_enabled = false
+payments_enabled = false
 
 [profiles.dev.app]
 env = "dev"
@@ -16,6 +17,7 @@ log_level = "debug"
 database_enabled = false
 bucket_enabled = false
 cache_enabled = false
+payments_enabled = false
 
 [profiles.staging.app]
 env = "staging"
@@ -25,6 +27,7 @@ log_level = "info"
 database_enabled = true
 bucket_enabled = true
 cache_enabled = true
+payments_enabled = false
 
 [profiles.prod.app]
 env = "prod"
@@ -34,3 +37,4 @@ log_level = "warn"
 database_enabled = true
 bucket_enabled = true
 cache_enabled = true
+payments_enabled = false

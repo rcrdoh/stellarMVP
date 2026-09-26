@@ -34,6 +34,7 @@ import {
 import { Agent, type CompiledAgentGraph } from "./agent.js";
 import type {
 	MerchantSearchAgent,
+	PaymentQuoteApprovalStore,
 	ShoppingDecisionProvider,
 	ShoppingQuoteProvider,
 } from "./ports/shopping-agent.js";
@@ -42,6 +43,8 @@ import { stableHash } from "./stable-hash.js";
 const State = Annotation.Root({
 	...MessagesAnnotation.spec,
 	sessionId: Annotation<string>,
+	principalId: Annotation<string>,
+	payerAddress: Annotation<string | null>,
 	status: Annotation<ShoppingState["status"]>,
 	intent: Annotation<ShoppingIntent | null>,
 	candidates: Annotation<MerchantOffer[]>,
@@ -66,6 +69,7 @@ export type ShoppingAgentDependencies = {
 	model: BaseChatModel;
 	thresholds?: { domainConfidence: number; routeConfidence: number };
 	maxIterations?: number;
+	paymentQuoteApprovalStore?: PaymentQuoteApprovalStore;
 };
 
 const systemPrompt =
@@ -351,6 +355,40 @@ export class ShoppingAgent extends Agent<ShoppingState> {
 					event.quoteHash !== state.quoteHash
 				)
 					throw new Error("Approval does not match the current quote");
+				if (event.approved && deps.paymentQuoteApprovalStore !== undefined) {
+					const quote = state.quote;
+					if (!quote?.payment) {
+						throw new Error("Approved quote has no Stellar settlement terms");
+					}
+					if (
+						state.payerAddress === null ||
+						quote.payment.payerAddress !== state.payerAddress
+					) {
+						throw new Error(
+							"Approved quote payer does not match the trusted wallet address",
+						);
+					}
+					await deps.paymentQuoteApprovalStore.saveApprovedQuote({
+						quoteId: quote.quoteId,
+						orderId: quote.quoteId,
+						sessionId: state.sessionId,
+						principalId: state.principalId,
+						quoteHash: state.quoteHash ?? "",
+						status: "approved",
+						networkPassphrase: quote.payment.networkPassphrase,
+						payerAddress: quote.payment.payerAddress,
+						assetCode: quote.payment.assetCode,
+						assetIssuer: quote.payment.assetIssuer,
+						assetDecimals: quote.payment.assetDecimals,
+						paymentLeg: {
+							purpose: "merchant",
+							payTo: quote.payment.payTo,
+							amountAtomic: quote.payment.amountAtomic,
+						},
+						expiresAt: quote.expiresAt,
+						approvedAt: new Date().toISOString(),
+					});
+				}
 				return {
 					status: event.approved
 						? ("authorized" as const)
@@ -380,12 +418,19 @@ export class ShoppingAgent extends Agent<ShoppingState> {
 	}
 
 	async start(
-		input: { sessionId: string; message: string },
+		input: {
+			sessionId: string;
+			message: string;
+			principalId?: string;
+			payerAddress?: string | null;
+		},
 		options: { threadId: string },
 	): Promise<ShoppingState> {
 		const parsed = shoppingStartInputSchema.parse(input);
 		const initial = {
 			sessionId: parsed.sessionId,
+			principalId: parsed.principalId,
+			payerAddress: parsed.payerAddress,
 			status: "understanding" as const,
 			intent: null,
 			candidates: [],

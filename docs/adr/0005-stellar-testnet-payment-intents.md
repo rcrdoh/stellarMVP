@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted and implemented on `design/agentic-commerce`
 
 ## Context
 
@@ -17,7 +17,7 @@ la persistencia de intents y la conciliación con Horizon. Esas capacidades
 deben quedar separadas del grafo LangGraph y del transporte Fastify, siguiendo
 `pautas de diseño.md`.
 
-## Decision propuesta
+## Decision
 
 - Integrar pagos Stellar por puertos de dominio y adaptadores, no mediante un
   merge completo de `design/stellar-payments`.
@@ -27,6 +27,9 @@ deben quedar separadas del grafo LangGraph y del transporte Fastify, siguiendo
 - Portar primero los esquemas de payment intent, los códigos de error, el
   gateway Horizon y el store de intents. El servicio de pagos recibirá una
   cotización aprobada e inmutable y no calculará precios ni decidirá compras.
+- PostgreSQL es la autoridad de `commerce_quotes`, `commerce_orders`,
+  `payment_intents` y `payment_attempts`. MongoDB queda reservado al
+  checkpointer de LangGraph; no se usa como ledger de pagos.
 - Componer las rutas de pago con las rutas actuales solo después de actualizar
   `specs/openapi.json`; conservar autenticación, idempotencia, expiración,
   verificación de firma y conciliación ante respuestas inciertas.
@@ -38,11 +41,11 @@ deben quedar separadas del grafo LangGraph y del transporte Fastify, siguiendo
 | Capacidad de `design/stellar-payments` | Destino en esta rama |
 | --- | --- |
 | `src/domain/payments.ts` | Dominio de intents, quote aprobada y legs Stellar |
-| `src/integrations/stellar/` | Adaptador `StellarPaymentGateway` detrás de un puerto |
-| `src/integrations/mongodb/` | Store de intents y quotes aprobadas, separado del checkpointer |
-| `src/services/payment-service.ts` | Caso de uso determinista invocado por checkout |
+| `src/integrations/stellar/` | Gateway de XDR/Horizon detrás de `StellarIntentGateway` |
+| `src/integrations/postgres-payment-repository.ts` | Quotes, órdenes, intents y pagos transaccionales en PostgreSQL |
+| `src/services/payment-intent-service.ts` | Caso de uso determinista para crear, enviar y conciliar intents |
 | `src/http/payment-routes.ts` | Rutas nuevas después del contrato OpenAPI |
-| configuración Stellar/Mongo | Extensión aditiva de `src/config/env.ts`, sin retirar variables del agente |
+| configuración Stellar/persistencia | Extensión aditiva de `src/config/env.ts`; Mongo conserva solo el checkpoint del agente |
 
 ## Conflictos conocidos
 
@@ -53,8 +56,10 @@ elimina `src/services/agents`, `src/integrations/agents` y los contratos del
 Shopping Agent. Esas eliminaciones deben rechazarse al reconciliarla.
 
 La implementación existente usa PostgreSQL/Redis/Stellar para ACP x402 y
-MongoDB para checkpoints. Los intents de pago deben evitar duplicar órdenes,
-redefinir estados de compra o mover el checkpoint del agente a PostgreSQL.
+MongoDB para checkpoints. Los intents de pago reutilizan PostgreSQL como
+fuente autoritativa transaccional, sin duplicar el checkpointer ni moverlo a
+PostgreSQL. El checkout ACP x402 y los intents de wallet conservan semánticas
+separadas.
 
 ## Consequences
 
@@ -64,8 +69,12 @@ redefinir estados de compra o mover el checkpoint del agente a PostgreSQL.
   destinatarios y expiración; el LLM no podrá alterar esos valores.
 - Una respuesta incierta de Horizon requerirá consultar y conciliar el estado
   antes de reintentar o marcar el intent como fallido.
-- Hasta completar esa integración, el checkout ACP x402 existente permanece
-  como la única superficie de pago habilitada por el runtime del agente.
+- `PAYMENTS_ENABLED=false` mantiene deshabilitada la superficie de wallet por
+  defecto. Al habilitarla, solo acepta Testnet, USDC, un merchant leg y un
+  `principalId` confiable entregado por el BFF.
+- El servicio de intents liquida el estado del intent y de la orden en una
+  transacción PostgreSQL; una confirmación de Horizon no se expone como orden
+  pagada si esa transacción no termina correctamente.
 
 ## Referencias
 

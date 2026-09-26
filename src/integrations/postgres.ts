@@ -1,10 +1,18 @@
 import { Pool } from "pg";
 
+export type PoolQuery = (
+	text: string,
+	values?: unknown[],
+) => Promise<{ rows: Record<string, unknown>[] }>;
+
+export type PoolClientLike = Readonly<{
+	query: PoolQuery;
+	release(): void;
+}>;
+
 export type PoolLike = {
-	query: (
-		text: string,
-		values?: unknown[],
-	) => Promise<{ rows: Record<string, unknown>[] }>;
+	query: PoolQuery;
+	connect?: () => Promise<PoolClientLike>;
 	end: () => Promise<void>;
 };
 

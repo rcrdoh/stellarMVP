@@ -17,10 +17,12 @@ import { AgentAuthService } from "../services/agent-auth.js";
 import { AgentCheckoutService } from "../services/agent-checkout.js";
 import { AgentSearchService } from "../services/agent-search.js";
 import { ItemService } from "../services/item-service.js";
+import type { PaymentRuntime } from "../services/payment-runtime.js";
 import {
 	registerErrorHandler,
 	registerValidatorCompiler,
 } from "./error-handler.js";
+import { registerPaymentRoutes } from "./payment-routes.js";
 import { type AgentRoutes, registerRoutes } from "./routes.js";
 
 export type AgentIntegrations = Readonly<{
@@ -50,6 +52,7 @@ type BuildServerOptions = Readonly<{
 	agent?: AgentIntegrations;
 	itemStore?: ItemStore;
 	closeClient?: () => Promise<void>;
+	payments?: PaymentRuntime;
 }>;
 
 function buildAgentRoutes(
@@ -119,7 +122,9 @@ export async function buildServer(options: BuildServerOptions = {}) {
 		resolvedIntegrations.agent === undefined
 			? undefined
 			: buildAgentRoutes(itemStore, resolvedIntegrations.agent),
+		options.payments,
 	);
+	registerPaymentRoutes(app, runtimeEnv, options.payments);
 	await app.register(apiReference, {
 		routePrefix: "/docs",
 		configuration: {
@@ -131,6 +136,12 @@ export async function buildServer(options: BuildServerOptions = {}) {
 		const closeClient = options.closeClient;
 		app.addHook("onClose", async () => {
 			await closeClient();
+		});
+	}
+	if (options.payments?.close !== undefined) {
+		const closePayments = options.payments.close;
+		app.addHook("onClose", async () => {
+			await closePayments();
 		});
 	}
 

@@ -14,6 +14,7 @@ import { AGENT_SCOPES } from "../services/agent-auth.js";
 import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
 import type { ItemService } from "../services/item-service.js";
+import type { PaymentRuntime } from "../services/payment-runtime.js";
 import type { AppIntegrations } from "./server.js";
 
 declare const Bun: {
@@ -86,6 +87,7 @@ export function registerRoutes(
 	runtimeEnv: Env = env,
 	integrations?: AppIntegrations,
 	agentRoutes?: AgentRoutes,
+	payments?: PaymentRuntime,
 ): void {
 	app.get("/", async (_request, reply) => reply.redirect("/docs"));
 
@@ -114,7 +116,11 @@ export function registerRoutes(
 			runtimeEnv.CACHE_ENABLED && integrations
 				? await integrations.cache.isReady()
 				: true;
-		const ready = storeReady && databaseReady && bucketReady && cacheReady;
+		const paymentsReady = runtimeEnv.PAYMENTS_ENABLED
+			? ((await payments?.isReady()) ?? false)
+			: true;
+		const ready =
+			storeReady && databaseReady && bucketReady && cacheReady && paymentsReady;
 
 		return {
 			status: ready ? "ok" : "degraded",
@@ -131,6 +137,10 @@ export function registerRoutes(
 					bucketReady,
 				),
 				cache: optionalIntegrationStatus(runtimeEnv.CACHE_ENABLED, cacheReady),
+				payments: optionalIntegrationStatus(
+					runtimeEnv.PAYMENTS_ENABLED,
+					paymentsReady,
+				),
 			},
 		};
 	});

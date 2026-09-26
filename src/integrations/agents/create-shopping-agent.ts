@@ -2,6 +2,7 @@ import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import type { Env } from "../../config/env.js";
 import type {
 	MerchantSearchAgent,
+	PaymentQuoteApprovalStore,
 	ShoppingQuoteProvider,
 } from "../../services/agents/ports/shopping-agent.js";
 import { ShoppingAgent } from "../../services/agents/shopping-agent.js";
@@ -13,6 +14,7 @@ export function createShoppingAgent(options: {
 	checkpointer: BaseCheckpointSaver;
 	merchantSearchAgent: MerchantSearchAgent;
 	quoteProvider: ShoppingQuoteProvider;
+	paymentQuoteApprovalStore?: PaymentQuoteApprovalStore;
 }): ShoppingAgent {
 	return new ShoppingAgent(options.checkpointer, {
 		decisionProvider: new TypesafeJevDecisionProvider({
@@ -22,6 +24,9 @@ export function createShoppingAgent(options: {
 		}),
 		merchantSearchAgent: options.merchantSearchAgent,
 		quoteProvider: options.quoteProvider,
+		...(options.paymentQuoteApprovalStore === undefined
+			? {}
+			: { paymentQuoteApprovalStore: options.paymentQuoteApprovalStore }),
 		model: createGroqChatModel({
 			apiKey: options.env.GROQ_API_KEY,
 			model: options.env.GROQ_MODEL,

@@ -16,6 +16,7 @@ type Operation = {
 };
 
 type ResponseObject = {
+	$ref?: string;
 	content?: {
 		"application/json"?: {
 			schema?: {
@@ -80,7 +81,10 @@ export function validateSpec(spec: OpenApiSpec): string[] {
 				if (/^[45]/.test(statusCode)) {
 					const ref =
 						response.content?.["application/problem+json"]?.schema?.$ref;
-					if (ref !== "#/components/schemas/Problem") {
+					if (
+						ref !== "#/components/schemas/Problem" &&
+						response.$ref !== "#/components/responses/ProblemResponse"
+					) {
 						errors.push(
 							`${location} response ${statusCode} must use Problem as application/problem+json`,
 						);

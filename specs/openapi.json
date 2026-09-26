@@ -476,9 +476,168 @@
 					}
 				]
 			}
+		},
+		"/v1/payment-intents": {
+			"post": {
+				"operationId": "createPaymentIntent",
+				"tags": ["payments"],
+				"summary": "Create a Stellar Testnet payment intent from an approved quote",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": { "type": "string", "minLength": 1, "maxLength": 128 }
+					},
+					{
+						"name": "Idempotency-Key",
+						"in": "header",
+						"required": true,
+						"schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreatePaymentIntentRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Intent created",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentIntent" }
+							}
+						}
+					},
+					"200": {
+						"description": "Idempotent replay",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentIntent" }
+							}
+						}
+					},
+					"400": { "$ref": "#/components/responses/ProblemResponse" },
+					"401": { "$ref": "#/components/responses/ProblemResponse" },
+					"403": { "$ref": "#/components/responses/ProblemResponse" },
+					"404": { "$ref": "#/components/responses/ProblemResponse" },
+					"409": { "$ref": "#/components/responses/ProblemResponse" },
+					"503": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
+			}
+		},
+		"/v1/payment-intents/{intentId}": {
+			"get": {
+				"operationId": "getPaymentIntent",
+				"tags": ["payments"],
+				"summary": "Get and reconcile a payment intent",
+				"parameters": [
+					{
+						"name": "intentId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "format": "uuid" }
+					},
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": { "type": "string", "minLength": 1, "maxLength": 128 }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Current intent state",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentIntent" }
+							}
+						}
+					},
+					"401": { "$ref": "#/components/responses/ProblemResponse" },
+					"403": { "$ref": "#/components/responses/ProblemResponse" },
+					"404": { "$ref": "#/components/responses/ProblemResponse" },
+					"409": { "$ref": "#/components/responses/ProblemResponse" },
+					"503": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
+			}
+		},
+		"/v1/payment-intents/{intentId}/submission": {
+			"post": {
+				"operationId": "submitPaymentIntentTransaction",
+				"tags": ["payments"],
+				"summary": "Verify and submit a wallet-signed Stellar transaction",
+				"parameters": [
+					{
+						"name": "intentId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "format": "uuid" }
+					},
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": { "type": "string", "minLength": 1, "maxLength": 128 }
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SubmitPaymentTransactionRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Terminal result",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentIntent" }
+							}
+						}
+					},
+					"202": {
+						"description": "Submitted and pending reconciliation",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PaymentIntent" }
+							}
+						}
+					},
+					"400": { "$ref": "#/components/responses/ProblemResponse" },
+					"401": { "$ref": "#/components/responses/ProblemResponse" },
+					"403": { "$ref": "#/components/responses/ProblemResponse" },
+					"404": { "$ref": "#/components/responses/ProblemResponse" },
+					"409": { "$ref": "#/components/responses/ProblemResponse" },
+					"503": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
+			}
 		}
 	},
 	"components": {
+		"responses": {
+			"ProblemResponse": {
+				"description": "RFC 9457 problem response",
+				"content": {
+					"application/problem+json": {
+						"schema": { "$ref": "#/components/schemas/Problem" }
+					}
+				}
+			}
+		},
 		"headers": {
 			"ErrorCodeHeader": {
 				"description": "Stable error code. Matches problem.code.",
@@ -810,6 +969,88 @@
 				},
 				"additionalProperties": false
 			}
+		},
+		"CreatePaymentIntentRequest": {
+			"type": "object",
+			"required": ["quoteId"],
+			"properties": {
+				"quoteId": { "type": "string", "minLength": 1, "maxLength": 128 }
+			},
+			"additionalProperties": false
+		},
+		"PaymentLeg": {
+			"type": "object",
+			"required": ["purpose", "payTo", "amountAtomic"],
+			"properties": {
+				"purpose": { "const": "merchant" },
+				"payTo": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" },
+				"amountAtomic": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+			},
+			"additionalProperties": false
+		},
+		"PaymentIntent": {
+			"type": "object",
+			"required": [
+				"intentId",
+				"quoteId",
+				"orderId",
+				"quoteHash",
+				"status",
+				"networkPassphrase",
+				"payerAddress",
+				"assetCode",
+				"assetIssuer",
+				"assetDecimals",
+				"totalAmountAtomic",
+				"paymentLeg",
+				"unsignedXdr",
+				"transactionHash",
+				"ledger",
+				"expiresAt",
+				"createdAt",
+				"updatedAt"
+			],
+			"properties": {
+				"intentId": { "type": "string", "format": "uuid" },
+				"quoteId": { "type": "string" },
+				"orderId": { "type": "string" },
+				"quoteHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+				"status": {
+					"enum": [
+						"awaiting_signature",
+						"submitting",
+						"submitted",
+						"confirmed",
+						"failed",
+						"expired"
+					]
+				},
+				"networkPassphrase": { "type": "string" },
+				"payerAddress": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" },
+				"assetCode": { "const": "USDC" },
+				"assetIssuer": { "type": "string", "pattern": "^G[A-Z2-7]{55}$" },
+				"assetDecimals": { "type": "integer", "const": 7 },
+				"totalAmountAtomic": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+				"paymentLeg": { "$ref": "#/components/schemas/PaymentLeg" },
+				"unsignedXdr": { "type": "string" },
+				"transactionHash": {
+					"type": ["string", "null"],
+					"pattern": "^[a-f0-9]{64}$"
+				},
+				"ledger": { "type": ["integer", "null"], "minimum": 1 },
+				"expiresAt": { "type": "string", "format": "date-time" },
+				"createdAt": { "type": "string", "format": "date-time" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"additionalProperties": false
+		},
+		"SubmitPaymentTransactionRequest": {
+			"type": "object",
+			"required": ["signedXdr"],
+			"properties": {
+				"signedXdr": { "type": "string", "minLength": 1, "maxLength": 100000 }
+			},
+			"additionalProperties": false
 		},
 		"securitySchemes": {
 			"serviceToken": {

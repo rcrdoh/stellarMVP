@@ -21,5 +21,5 @@ arquitectura.
   scopes Redis, rate limiting y circuit breakers) ya esta implementada, pero la
   decision sigue `Proposed` hasta validar el prototipo sandbox end-to-end y las
   decisiones abiertas de producto. Checkpoint del agente permanece en MongoDB.
-- `0005-stellar-testnet-payment-intents.md`: propuesta para portar intents de
-  pago Stellar Testnet por capas, conservando el agente y el checkout ACP x402.
+- `0005-stellar-testnet-payment-intents.md`: intents de pago Stellar Testnet
+  implementados por capas, conservando el agente y el checkout ACP x402.
