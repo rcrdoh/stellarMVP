@@ -1,7 +1,11 @@
 # Entorno de agente recuperador
 
-Estado: arquitectura propuesta y dependencias instaladas. La lógica de agente,
-ingesta, pagos y workers todavía no está implementada.
+Estado: recuperación e ingesta de catálogos implementadas como primera
+vertical. El
+despliegue de la API y el índice Qdrant están preparados, pero la ingesta en
+producción depende de que el comercio publique UCP y de configurar embeddings.
+La ejecución de trabajos todavía es en memoria del proceso; para producción se
+debe sustituir por un worker durable.
 
 ## Decisiones de stack
 
@@ -86,17 +90,17 @@ proceso web y pruebas de settlement satisfactorias en testnet.
 ## UCP y comercio asistido
 
 El diseño de compra por agentes, que sigue obligatoriamente
-`pautas de diseño.md`, está en `docs/agentic-commerce-design.md`. UCP/Shopify
-Global Catalog es candidato para descubrimiento de productos y checkout; x402
-cubre pago HTTP por recurso y no sustituye carrito, orden, devolución o
-fulfillment. Esta selección es propuesta: no hay aún endpoints de comercio ni
-integración activa. No implementar pagos reales hasta cerrar merchant, moneda,
+`pautas de diseño.md`, está en `docs/agentic-commerce-design.md`. El adaptador
+Bazaar/x402 de HeinrichsTech está activo para descubrimiento de servicios; el
+adaptador UCP queda como opción para comercios que publiquen el perfil y sus
+capacidades. UCP/Shopify Global Catalog puede cubrir descubrimiento y checkout;
+x402 cubre pago HTTP por recurso y no sustituye carrito, orden, devolución o
+fulfillment. No implementar pagos reales hasta cerrar merchant, moneda,
 settlement y políticas de autorización.
 
-## Configuración prevista
+## Configuración
 
-Nombres sugeridos para documentar al implementar; todavía no están conectados a
-la configuración tipada:
+La configuración de recuperación de catálogo y Qdrant está tipada en `src/config/env.ts`:
 
 | Variable | Uso |
 | --- | --- |
@@ -108,6 +112,13 @@ la configuración tipada:
 | `MONGODB_URI` | Checkpoints y estado durable del Shopping Agent |
 | `DATABASE_URL` | PostgreSQL para catálogo/órdenes y datos transaccionales |
 | `QDRANT_URL` / `QDRANT_API_KEY` | Qdrant local o gestionado |
+| `QDRANT_COLLECTION` | Colección derivada para ofertas UCP |
+| `CATALOG_ADAPTER` | `bazaar` para catálogos x402 o `ucp` para comercios UCP |
+| `CATALOG_MERCHANT_URL` / `CATALOG_SOURCE_URL` | Origen y documento de catálogo |
+| `CATALOG_MERCHANT_ID` / `CATALOG_QUERY` | Identidad y consulta de ingesta |
+| `UCP_AGENT_PROFILE_URL` | URL `/.well-known/ucp` del agente, solo para el adaptador UCP |
+| `EMBEDDINGS_API_KEY` / `EMBEDDINGS_MODEL` | Credencial y modelo del proveedor de embeddings compatible |
+| `EMBEDDINGS_API_BASE_URL` | Base URL opcional del proveedor compatible |
 | `X402_NETWORK` | Red de prueba habilitada, por defecto testnet |
 | `X402_FACILITATOR_URL` | Facilitador de la red elegida |
 
@@ -115,14 +126,36 @@ Las claves de pagador, facilitador, receptor y Stripe requieren nombres y
 custodia acordes al flujo que se implemente; no reutilizar `LLM_API_KEY` para
 ninguno de esos secretos.
 
+## Implementado en la primera vertical de catálogo
+
+- `UcpCatalogClient` es un adaptador opcional: descubre `/.well-known/ucp`, valida
+  el servicio REST y consulta `/catalog/search` con `UCP-Agent` y `Request-Id`.
+- `BazaarCatalogClient` es el adaptador activo para HeinrichsTech: consume
+  `/bazaar.json`, normaliza PageDelta y conserva sus rails x402 `accepts[]`.
+- `CatalogIngestionService` transforma ofertas UCP, obtiene embeddings mediante
+  un proveedor OpenAI-compatible y
+  crea o actualiza una colección Qdrant. `bun run catalog:ingest` ejecuta una
+  ingesta explícita; las rutas autenticadas de ingesta devuelven un trabajo y
+  su estado.
+- `AgentSearchService` usa Qdrant cuando hay índice y cae al catálogo configurado
+  en vivo cuando el índice está vacío o falla. Los adaptadores dependen de
+  puertos y no de Qdrant ni del proveedor de embeddings directamente.
+- La API publica `/.well-known/ucp` para que el comercio pueda identificar al
+  agente (con `/ucp/agent-profile.json` como alias de compatibilidad). Las rutas
+  de ingesta requieren `SERVICE_TOKEN`.
+
+El comercio activo es HeinrichsTech (`https://app.heinrichstech.com`): publica
+un catálogo Bazaar/x402 con PageDelta y no un perfil UCP. El adaptador UCP queda
+disponible para otro comercio cuando publique su perfil. Tampoco se debe poner
+una credencial en Git; `EMBEDDINGS_API_KEY` se configura únicamente en el
+entorno de ejecución.
+
 ## Pendientes de implementación
 
-- Añadir adaptadores LLM y de embeddings; validar modelos/dimensiones de vectores
-  con Qdrant y fijar estrategia de recuperación y citas.
-- Crear contratos HTTP para crear una ingesta, consultar estado y hacer una
-  pregunta; actualizar `specs/openapi.json` antes de exponer las rutas.
-- Implementar persistencia de fuentes/documentos y ejecución durable con
-  idempotencia, reintentos limitados y política de retención.
+- Persistir los trabajos de ingesta fuera del proceso web, con idempotencia,
+  reintentos limitados y política de retención.
+- Validar la dimensión de una colección Qdrant ya existente antes de hacer
+  `upsert`, y añadir citas/procedencia completas al resultado de búsqueda.
 - Crear worker Docker, health checks y servicios locales MongoDB,
   PostgreSQL/Qdrant; no asumir que el filesystem del contenedor Render sirve
   para persistencia durable.
@@ -150,3 +183,4 @@ ninguno de esos secretos.
 - [Estado del esquema `upto` en Stellar](https://github.com/stellar/x402-stellar/issues/71)
 - [Stripe: soporte x402 inicial en Base](https://stripe.com/blog/10-lessons)
 - [UCP: conceptos y protocolo de checkout](https://github.com/Universal-Commerce-Protocol/ucp/blob/main/docs/documentation/core-concepts.md)
+- [UCP: REST binding de catálogo](https://ucp.dev/specification/shopping/catalog/rest/)

@@ -7,7 +7,7 @@ import {
 	agentSearchQuerySchema,
 } from "../domain/agent.js";
 import { errorCodes } from "../domain/error-codes.js";
-import { AppError } from "../domain/errors.js";
+import { AppError, NotFoundError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
 import type { AgentAuthService } from "../services/agent-auth.js";
 import { AGENT_SCOPES } from "../services/agent-auth.js";
@@ -94,6 +94,17 @@ export function registerRoutes(
 
 	app.get("/openapi.json", async () => Bun.file(openApiSpecUrl).json());
 
+	const ucpAgentProfile = {
+		ucp: {
+			version: "2026-08-25",
+			services: {},
+			capabilities: {},
+			payment_handlers: {},
+		},
+	};
+	app.get("/.well-known/ucp", async () => ucpAgentProfile);
+	app.get("/ucp/agent-profile.json", async () => ucpAgentProfile);
+
 	app.get("/v1/health/live", async () => ({
 		status: "ok",
 		service: runtimeEnv.APP_NAME,
@@ -120,6 +131,25 @@ export function registerRoutes(
 			.type("application/javascript; charset=utf-8")
 			.send(await readFrontendAsset("javascript"));
 	});
+
+	const catalogIngestion =
+		integrations?.catalogIngestion ?? integrations?.agent?.catalogIngestion;
+	if (catalogIngestion !== undefined) {
+		app.post("/v1/catalog/ingestions", async (request, reply) => {
+			requireServiceToken(request, runtimeEnv);
+			const job = catalogIngestion.start();
+			return reply.code(202).send(job);
+		});
+
+		app.get("/v1/catalog/ingestions/:ingestionId", async (request) => {
+			requireServiceToken(request, runtimeEnv);
+			const { ingestionId } = request.params as { ingestionId: string };
+			const job = catalogIngestion.get(ingestionId);
+			if (job === undefined)
+				throw new NotFoundError("catalog-ingestion", ingestionId);
+			return job;
+		});
+	}
 
 	app.get("/v1/health/ready", async () => {
 		const storeReady = await itemService.isReady();

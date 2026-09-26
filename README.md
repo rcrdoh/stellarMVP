@@ -171,6 +171,12 @@ habilitados en Stellar Testnet y un importe fijo de `0.01` USDC. El endpoint
 `POST /v1/payment-quotes` recibe el `payerAddress` público de la wallet y usa
 `STELLAR_PAYMENT_PAY_TO` como receptor.
 
+La búsqueda del agente usa por defecto el catálogo Bazaar/x402 de HeinrichsTech
+y crea la colección Qdrant `heinrichstech_services`. Configura
+`EMBEDDINGS_API_KEY` y ejecuta `bun run catalog:ingest` para indexarlo. El
+adaptador UCP sigue disponible con `CATALOG_ADAPTER=ucp` para comercios que
+publiquen `/.well-known/ucp`.
+
 ## Render
 
 El despliegue activo usa Render con el `Dockerfile` de la raíz. La imagen instala

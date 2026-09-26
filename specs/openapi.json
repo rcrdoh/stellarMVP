@@ -119,6 +119,40 @@
 				}
 			}
 		},
+		"/ucp/agent-profile.json": {
+			"get": {
+				"operationId": "getUcpAgentProfile",
+				"tags": ["agent"],
+				"summary": "Get the public UCP agent profile",
+				"responses": {
+					"200": {
+						"description": "UCP platform profile",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/UcpAgentProfile" }
+							}
+						}
+					}
+				}
+			}
+		},
+		"/.well-known/ucp": {
+			"get": {
+				"operationId": "getUcpWellKnownProfile",
+				"tags": ["agent"],
+				"summary": "Get the public UCP agent profile",
+				"responses": {
+					"200": {
+						"description": "UCP platform profile",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/UcpAgentProfile" }
+							}
+						}
+					}
+				}
+			}
+		},
 		"/v1/health/live": {
 			"get": {
 				"operationId": "getLiveHealth",
@@ -318,6 +352,54 @@
 						"serviceToken": []
 					}
 				]
+			}
+		},
+		"/v1/catalog/ingestions": {
+			"post": {
+				"operationId": "startCatalogIngestion",
+				"tags": ["agent"],
+				"summary": "Start a UCP catalog ingestion",
+				"description": "Starts a bounded in-process ingestion from the configured UCP merchant into the configured Qdrant collection.",
+				"responses": {
+					"202": {
+						"description": "Ingestion queued",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/CatalogIngestionJob" }
+							}
+						}
+					},
+					"401": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
+			}
+		},
+		"/v1/catalog/ingestions/{ingestionId}": {
+			"get": {
+				"operationId": "getCatalogIngestion",
+				"tags": ["agent"],
+				"summary": "Get catalog ingestion status",
+				"parameters": [
+					{
+						"name": "ingestionId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Ingestion status",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/CatalogIngestionJob" }
+							}
+						}
+					},
+					"401": { "$ref": "#/components/responses/ProblemResponse" },
+					"409": { "$ref": "#/components/responses/ProblemResponse" }
+				},
+				"security": [{ "serviceToken": [] }]
 			}
 		},
 		"/v1/agent/search": {
@@ -932,6 +1014,73 @@
 						"type": "object",
 						"additionalProperties": true
 					}
+				},
+				"additionalProperties": false
+			},
+			"UcpAgentProfile": {
+				"type": "object",
+				"required": ["ucp"],
+				"properties": {
+					"ucp": {
+						"type": "object",
+						"required": [
+							"version",
+							"services",
+							"capabilities",
+							"payment_handlers"
+						],
+						"properties": {
+							"version": { "type": "string" },
+							"services": { "type": "object", "additionalProperties": true },
+							"capabilities": {
+								"type": "object",
+								"additionalProperties": true
+							},
+							"payment_handlers": {
+								"type": "object",
+								"additionalProperties": true
+							}
+						},
+						"additionalProperties": true
+					}
+				},
+				"additionalProperties": true
+			},
+			"CatalogIngestionResult": {
+				"type": "object",
+				"required": [
+					"jobId",
+					"status",
+					"merchantId",
+					"collection",
+					"products",
+					"points",
+					"completedAt"
+				],
+				"properties": {
+					"jobId": { "type": "string" },
+					"status": { "const": "completed" },
+					"merchantId": { "type": "string" },
+					"collection": { "type": "string" },
+					"products": { "type": "integer", "minimum": 0 },
+					"points": { "type": "integer", "minimum": 0 },
+					"completedAt": { "type": "string", "format": "date-time" }
+				},
+				"additionalProperties": false
+			},
+			"CatalogIngestionJob": {
+				"type": "object",
+				"required": ["id", "status", "createdAt", "updatedAt"],
+				"properties": {
+					"id": { "type": "string" },
+					"status": {
+						"type": "string",
+						"enum": ["queued", "running", "completed", "failed"]
+					},
+					"result": { "$ref": "#/components/schemas/CatalogIngestionResult" },
+					"error": { "type": "string" },
+					"createdAt": { "type": "string", "format": "date-time" },
+					"updatedAt": { "type": "string", "format": "date-time" }
 				},
 				"additionalProperties": false
 			},

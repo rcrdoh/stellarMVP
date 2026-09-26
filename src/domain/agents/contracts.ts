@@ -49,6 +49,23 @@ export const merchantOfferSchema = z
 		url: z.string().url(),
 		fetchedAt: z.string().datetime(),
 		source: z.enum(["ucp", "catalog", "api", "scraper"]),
+		paymentTerms: z
+			.array(
+				z
+					.object({
+						scheme: z.string().min(1),
+						network: z.string().min(1),
+						amount: z.string().min(1),
+						payTo: z.string().min(1),
+						asset: z.string().min(1).optional(),
+						maxTimeoutSeconds: z.number().int().positive().optional(),
+						extra: z.record(z.string(), z.unknown()).optional(),
+						resource: z.string().url().optional(),
+					})
+					.strict(),
+			)
+			.max(20)
+			.optional(),
 	})
 	.strict();
 export type MerchantOffer = z.infer<typeof merchantOfferSchema>;

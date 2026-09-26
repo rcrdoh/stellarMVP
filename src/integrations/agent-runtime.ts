@@ -3,52 +3,69 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { Horizon, Networks, TransactionBuilder } from "@stellar/stellar-sdk";
 import type { Env } from "../config/env.js";
 import type { AgentIntegrations } from "../http/server.js";
+import {
+	CatalogIngestionJobService,
+	CatalogIngestionService,
+} from "../services/catalog-ingestion.js";
+import { BazaarCatalogClient } from "./bazaar-catalog.js";
 import { OpenAIAdapter } from "./openai.js";
 import { createPostgresPool, PostgresOrdersRepository } from "./postgres.js";
-import { QdrantAdapter, type VectorSearchClient } from "./qdrant.js";
+import {
+	QdrantAdapter,
+	QdrantIndexAdapter,
+	type VectorIndexClient,
+	type VectorSearchClient,
+} from "./qdrant.js";
 import { getRedisClient } from "./redis.js";
 import {
 	type StellarPaymentRequest,
 	StellarPaymentService,
 	type StellarServer,
 } from "./stellar.js";
+import { UcpCatalogClient } from "./ucp-catalog.js";
 
 export type AgentRuntime = Readonly<{
 	integrations: AgentIntegrations;
 	close: () => Promise<void>;
 }>;
 
-function createQdrantClient(runtimeEnv: Env): VectorSearchClient {
+function createQdrantClients(runtimeEnv: Env): {
+	search: VectorSearchClient;
+	index: VectorIndexClient;
+} {
 	const client = new QdrantClient({
 		url: runtimeEnv.QDRANT_URL,
 		...(runtimeEnv.QDRANT_API_KEY.length === 0
 			? {}
 			: { apiKey: runtimeEnv.QDRANT_API_KEY }),
 	});
-	return new QdrantAdapter({
-		search: async (request) => {
-			const response = await client.query(request.collection, {
-				query: request.vector,
-				limit: request.limit,
-				with_payload: true,
-				...(request.filters === undefined
-					? {}
-					: {
-							filter: {
-								must: Object.entries(request.filters).map(([key, value]) => ({
-									key,
-									match: { value },
-								})),
-							},
-						}),
-			});
-			return response.points.map((hit) => ({
-				id: String(hit.id),
-				score: hit.score,
-				payload: (hit.payload ?? {}) as Record<string, unknown>,
-			}));
-		},
-	});
+	return {
+		search: new QdrantAdapter({
+			search: async (request) => {
+				const response = await client.query(request.collection, {
+					query: request.vector,
+					limit: request.limit,
+					with_payload: true,
+					...(request.filters === undefined
+						? {}
+						: {
+								filter: {
+									must: Object.entries(request.filters).map(([key, value]) => ({
+										key,
+										match: { value },
+									})),
+								},
+							}),
+				});
+				return response.points.map((hit) => ({
+					id: String(hit.id),
+					score: hit.score,
+					payload: (hit.payload ?? {}) as Record<string, unknown>,
+				}));
+			},
+		}),
+		index: new QdrantIndexAdapter(client),
+	};
 }
 
 /**
@@ -87,21 +104,66 @@ export async function createAgentRuntime(
 			),
 	);
 
-	const openai = new OpenAIAdapter(
-		{ invoke: async () => ({ content: "" }) },
-		new OpenAIEmbeddings({
-			apiKey: runtimeEnv.OPENAI_API_KEY,
-			model: runtimeEnv.OPENAI_EMBEDDINGS_MODEL,
-		}),
-	);
+	const catalog =
+		runtimeEnv.CATALOG_ADAPTER === "ucp"
+			? new UcpCatalogClient({
+					merchantUrl: runtimeEnv.CATALOG_MERCHANT_URL,
+					merchantId: runtimeEnv.CATALOG_MERCHANT_ID,
+					agentProfileUrl: runtimeEnv.UCP_AGENT_PROFILE_URL,
+					timeoutMs: runtimeEnv.CATALOG_REQUEST_TIMEOUT_MS,
+					maxProducts: runtimeEnv.CATALOG_MAX_PRODUCTS,
+				})
+			: new BazaarCatalogClient({
+					merchantUrl: runtimeEnv.CATALOG_MERCHANT_URL,
+					merchantId: runtimeEnv.CATALOG_MERCHANT_ID,
+					...(runtimeEnv.CATALOG_SOURCE_URL.length === 0
+						? {}
+						: { catalogUrl: runtimeEnv.CATALOG_SOURCE_URL }),
+					timeoutMs: runtimeEnv.CATALOG_REQUEST_TIMEOUT_MS,
+					maxProducts: runtimeEnv.CATALOG_MAX_PRODUCTS,
+				});
+	const embeddings =
+		runtimeEnv.EMBEDDINGS_API_KEY.length > 0
+			? new OpenAIAdapter(
+					{ invoke: async () => ({ content: "" }) },
+					new OpenAIEmbeddings({
+						apiKey: runtimeEnv.EMBEDDINGS_API_KEY,
+						model: runtimeEnv.EMBEDDINGS_MODEL,
+						...(runtimeEnv.EMBEDDINGS_API_BASE_URL.length === 0
+							? {}
+							: {
+									configuration: {
+										baseURL: runtimeEnv.EMBEDDINGS_API_BASE_URL,
+									},
+								}),
+					}),
+				)
+			: undefined;
+	const qdrant =
+		runtimeEnv.QDRANT_URL.length > 0
+			? createQdrantClients(runtimeEnv)
+			: undefined;
+	const catalogIngestion =
+		catalog !== undefined && embeddings !== undefined && qdrant !== undefined
+			? new CatalogIngestionJobService(
+					new CatalogIngestionService(catalog, embeddings, qdrant.index, {
+						merchantId: runtimeEnv.CATALOG_MERCHANT_ID,
+						collection: runtimeEnv.QDRANT_COLLECTION,
+						query: runtimeEnv.CATALOG_QUERY,
+						limit: runtimeEnv.CATALOG_MAX_PRODUCTS,
+					}),
+				)
+			: undefined;
 
 	return {
 		integrations: {
 			redis,
 			orders,
 			stellar,
-			embeddings: openai,
-			vectors: createQdrantClient(runtimeEnv),
+			...(embeddings === undefined ? {} : { embeddings }),
+			...(qdrant === undefined ? {} : { vectors: qdrant.search }),
+			...(catalog === undefined ? {} : { catalog }),
+			...(catalogIngestion === undefined ? {} : { catalogIngestion }),
 			vectorCollection: runtimeEnv.QDRANT_COLLECTION,
 		},
 		close: async () => {

@@ -18,7 +18,8 @@ expiración.
 El agente normaliza el mensaje actual como consulta básica. La extracción
 completa de filtros, la implementación del Search Agent y proveedores reales de
 cotización siguen siendo responsabilidades pendientes de otros servicios.
-`SearchAgent` todavía no implementa búsqueda y compila sin persistencia.
+La búsqueda vectorial está implementada en `agent-search.ts`; usa el índice
+Qdrant y puede caer al adaptador de catálogo configurado en vivo.
 
 `stableHash` liga la aprobación al snapshot. El límite de iteraciones de
 LangGraph restringe el ciclo ReAct. Falta conectar `BudgetTracker` a métricas

@@ -49,6 +49,36 @@ describe("OpenAPI contract", () => {
 		expect(styles.headers["content-type"]).toContain("text/css");
 	});
 
+	test("publishes the UCP agent profile", async () => {
+		const spec = await loadSpec();
+		const app = await buildServer();
+		const wellKnown = await app.inject({
+			method: "GET",
+			url: "/.well-known/ucp",
+		});
+		const response = await app.inject({
+			method: "GET",
+			url: "/ucp/agent-profile.json",
+		});
+
+		expect(spec.paths?.["/.well-known/ucp"]?.get?.operationId).toBe(
+			"getUcpWellKnownProfile",
+		);
+		expect(spec.paths?.["/ucp/agent-profile.json"]?.get?.operationId).toBe(
+			"getUcpAgentProfile",
+		);
+		expect(wellKnown.statusCode).toBe(200);
+		expect(response.statusCode).toBe(200);
+		expect(response.json()).toMatchObject({
+			ucp: {
+				version: "2026-08-25",
+				services: {},
+				capabilities: {},
+				payment_handlers: {},
+			},
+		});
+	});
+
 	test("root redirects to the interactive API documentation", async () => {
 		const spec = await loadSpec();
 		const app = await buildServer();

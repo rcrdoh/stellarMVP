@@ -16,6 +16,8 @@ import type { StellarPaymentGateway } from "../integrations/stellar.js";
 import { AgentAuthService } from "../services/agent-auth.js";
 import { AgentCheckoutService } from "../services/agent-checkout.js";
 import { AgentSearchService } from "../services/agent-search.js";
+import type { MerchantSearchAgent } from "../services/agents/ports/shopping-agent.js";
+import type { CatalogIngestionJobService } from "../services/catalog-ingestion.js";
 import { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
 import {
@@ -29,8 +31,10 @@ export type AgentIntegrations = Readonly<{
 	redis: RedisLike;
 	orders: OrdersRepository;
 	stellar: StellarPaymentGateway;
-	embeddings: EmbeddingsLike;
-	vectors: VectorSearchClient;
+	embeddings?: EmbeddingsLike;
+	vectors?: VectorSearchClient;
+	catalog?: MerchantSearchAgent;
+	catalogIngestion?: CatalogIngestionJobService;
 	vectorCollection?: string;
 }>;
 
@@ -38,6 +42,7 @@ export type AppIntegrations = Readonly<{
 	database: Database;
 	bucket: ObjectBucket;
 	cache: Cache;
+	catalogIngestion?: CatalogIngestionJobService;
 	/**
 	 * Optional agentic-commerce dependencies. When absent the `/v1/agent/*`
 	 * routes stay unregistered, keeping the default surface to core items.
@@ -63,6 +68,7 @@ function buildAgentRoutes(
 		auth: new AgentAuthService(agent.redis),
 		search: new AgentSearchService(agent.embeddings, agent.vectors, {
 			collection: agent.vectorCollection ?? "items",
+			...(agent.catalog === undefined ? {} : { fallback: agent.catalog }),
 		}),
 		checkout: new AgentCheckoutService({
 			auth: new AgentAuthService(agent.redis),

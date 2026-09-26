@@ -7,6 +7,7 @@
 		"build": "tsc -p tsconfig.build.json",
 		"check": "biome check .",
 		"check-types": "tsc -p tsconfig.check.json",
+		"catalog:ingest": "bun scripts/ingest-catalog.ts",
 		"dev": "bun --watch src/index.ts",
 		"format": "biome format --write .",
 		"spec:check": "bun run scripts/validate-openapi.ts",

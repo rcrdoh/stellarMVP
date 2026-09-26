@@ -10,6 +10,10 @@ export interface EmbeddingsLike {
 	embedQuery(text: string): Promise<number[]>;
 }
 
+export interface DocumentEmbeddingsLike {
+	embedDocuments(texts: string[]): Promise<number[][]>;
+}
+
 export type OpenAITimeouts = CircuitBreakerOptions;
 
 export class OpenAIAdapter {
@@ -42,5 +46,9 @@ export class OpenAIAdapter {
 
 	embedQuery(text: string): Promise<number[]> {
 		return this.embeddingBreaker.fire(text);
+	}
+
+	embedDocuments(texts: string[]): Promise<number[][]> {
+		return Promise.all(texts.map((text) => this.embedQuery(text)));
 	}
 }

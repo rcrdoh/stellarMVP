@@ -9,7 +9,8 @@ Shopping/Search. Shopping recibe checkpointer, provider de decisión, modelo,
 puerto de búsqueda y cotizador. Usa Jev para habilitar rutas y el modelo solo
 puede ejecutar la herramienta de búsqueda. `start` inicia/continúa el flujo y
 `resume` responde a las pausas de selección/aprobación con el mismo `threadId`.
-La aprobación no ejecuta checkout ni pago. Search sigue siendo un esqueleto.
+La aprobación no ejecuta checkout ni pago. `agent-search.ts` soporta Qdrant con
+fallback al catálogo configurado.
 
 Casos de uso de agent commerce:
 

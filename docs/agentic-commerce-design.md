@@ -323,18 +323,22 @@ adaptador Groq/OpenAI-compatible, ciclo ReAct con herramienta de búsqueda
 allowlisted, pausas reanudables para selección y aprobación, validación de
 cotización y hash estable, checkpointer MongoDB y factory de composición. La
 aprobación queda registrada en el checkpoint como estado `authorized`; no crea
-checkout, orden ni pago. La factory permite inyectar Search Agent y cotizador;
-ninguno de esos proveedores está implementado ni conectado al servidor HTTP.
+checkout, orden ni pago. La primera vertical de Search Agent ya conecta el
+cliente UCP, el índice Qdrant con embeddings del proveedor configurado y el
+fallback de catálogo en vivo. La ingesta se expone como trabajo en memoria y se ejecuta también mediante
+`bun run catalog:ingest`.
 
 Persisten como faltantes la extracción robusta de filtros, los límites de
 presupuesto por llamadas/tokens (el ciclo ReAct sí tiene límite de iteraciones),
-consumo único de aprobación, implementación del Search Agent, revalidación
-comercial de cotización y composición/ciclo de vida del agente en el servidor.
+consumo único de aprobación, revalidación comercial de cotización y persistencia
+durable de trabajos en un worker separado.
 
-Faltan: worker de ingesta, servicios/repos transaccionales de catálogo y
-comercio, DTOs completos, adaptadores de fuente, checkout/payment/fulfillment,
-eventos y contratos OpenAPI. La incorporación del driver no demuestra aún
-compatibilidad operativa en Render ni una política de retención.
+Faltan: worker durable de ingesta, servicios/repos transaccionales de catálogo y
+comercio, DTOs completos, adaptadores de fuente adicionales,
+checkout/payment/fulfillment, eventos y una integración UCP opcional del
+comercio. HeinrichsTech se integra actualmente por su catálogo Bazaar/x402;
+eso no equivale a implementar Checkout UCP.
+La integración actual no crea órdenes ni pagos comerciales por sí sola.
 
 ## Referencias primarias
 

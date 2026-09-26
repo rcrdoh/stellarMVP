@@ -32,4 +32,8 @@ lateral al importar módulos.
 - `qdrant.ts` / `openai.ts`: llamadas salientes envueltas en circuit breakers
   (`circuit-breaker.ts`) que mapean a `SVC-CORE-5005` cuando el proveedor no
   responde.
+- `bazaar-catalog.ts`: adaptador opcional para catálogos x402/Bazaar; es el
+  adaptador activo de HeinrichsTech y conserva las rails `accepts[]` por oferta.
+- `ucp-catalog.ts`: adaptador opcional para comercios UCP con discovery y
+  `POST /catalog/search`. Se selecciona con `CATALOG_ADAPTER`.
 - `agent-runtime.ts`: composicion del runtime del agente para el servidor HTTP.

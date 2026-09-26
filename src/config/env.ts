@@ -31,12 +31,26 @@ export const envSchema = z
 		MONGODB_DATABASE: z.string().min(1).default("stellarmvp"),
 		QDRANT_URL: z.string().default(""),
 		QDRANT_API_KEY: z.string().default(""),
-		QDRANT_COLLECTION: z.string().min(1).default("items"),
-		OPENAI_API_KEY: z.string().default(""),
-		OPENAI_EMBEDDINGS_MODEL: z
+		QDRANT_COLLECTION: z.string().min(1).default("heinrichstech_services"),
+		EMBEDDINGS_API_KEY: z.string().default(""),
+		EMBEDDINGS_MODEL: z.string().min(1).default("text-embedding-3-small"),
+		EMBEDDINGS_API_BASE_URL: z.string().url().default(""),
+		CATALOG_ADAPTER: z.enum(["bazaar", "ucp"]).default("bazaar"),
+		CATALOG_MERCHANT_URL: z
 			.string()
-			.min(1)
-			.default("text-embedding-3-small"),
+			.url()
+			.default("https://app.heinrichstech.com"),
+		CATALOG_MERCHANT_ID: z.string().min(1).default("heinrichstech"),
+		CATALOG_SOURCE_URL: z.string().url().default(""),
+		CATALOG_QUERY: z.string().min(1).default("page"),
+		CATALOG_MAX_PRODUCTS: z.coerce.number().int().min(1).max(100).default(50),
+		CATALOG_REQUEST_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.min(500)
+			.max(60_000)
+			.default(10_000),
+		UCP_AGENT_PROFILE_URL: z.string().url().default(""),
 		SERVICE_TOKEN: z.string().default(""),
 		STELLAR_NETWORK: z.string().default(""),
 		STELLAR_HORIZON_URL: z
