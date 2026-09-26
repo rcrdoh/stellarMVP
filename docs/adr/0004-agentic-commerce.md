@@ -97,3 +97,5 @@ tratarse como cambio de diseno, no como correccion mecanica.
 - [Shopify Global Catalog MCP](https://shopify.dev/docs/agents/catalog/global-catalog).
 - [x402 v2](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md).
 - [MongoDB checkpoint para LangGraph.js](https://www.mongodb.com/docs/atlas/ai-integrations/langgraph-js/).
+- `docs/adr/0005-stellar-testnet-payment-intents.md` para la reconciliación
+  propuesta de intents Stellar con este checkout.
