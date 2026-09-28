@@ -659,6 +659,102 @@
 				]
 			}
 		},
+		"/v1/agent/catalog/search": {
+			"post": {
+				"operationId": "agentCatalogSearch",
+				"tags": ["agent"],
+				"summary": "Search the vector merchant catalog",
+				"description": "Runs a top-K vector retrieval against the Qdrant merchant catalog and returns validated MerchantProduct candidates. All query parameters are sanitized by a strict Zod schema (Audit L2). Requires the agent:search scope. Rate limited per agent token; when Qdrant is unreachable the endpoint serves a deterministic fallback catalog and flags it with `fallback: true`.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CatalogSearchRequest"
+							},
+							"examples": {
+								"demo": {
+									"value": {
+										"queryText": "wireless headphones",
+										"category": "electronics",
+										"maxPrice": 250,
+										"minScore": 0.6,
+										"limit": 10
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Validated merchant product candidates",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CatalogSearchResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"agentToken": []
+					}
+				]
+			}
+		},
 		"/v1/payment-intents": {
 			"post": {
 				"operationId": "createPaymentIntent",
@@ -1477,6 +1573,127 @@
 					},
 					"intent": {
 						"$ref": "#/components/schemas/DiscoveryShoppingIntent"
+					}
+				}
+			},
+			"CatalogSearchRequest": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"vector": {
+						"type": "array",
+						"items": {
+							"type": "number"
+						}
+					},
+					"queryText": {
+						"type": "string",
+						"maxLength": 256
+					},
+					"category": {
+						"type": "string"
+					},
+					"maxPrice": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"minScore": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1,
+						"default": 0.6
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 50,
+						"default": 10
+					}
+				},
+				"anyOf": [
+					{
+						"required": ["queryText"]
+					},
+					{
+						"required": ["vector"]
+					}
+				]
+			},
+			"MerchantProduct": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": [
+					"id",
+					"merchantId",
+					"title",
+					"description",
+					"price",
+					"currency",
+					"category",
+					"inStock",
+					"metadata"
+				],
+				"properties": {
+					"id": {
+						"type": "string",
+						"minLength": 1
+					},
+					"merchantId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"title": {
+						"type": "string",
+						"minLength": 1
+					},
+					"description": {
+						"type": "string"
+					},
+					"price": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"currency": {
+						"type": "string",
+						"default": "USD"
+					},
+					"category": {
+						"type": "string"
+					},
+					"inStock": {
+						"type": "boolean",
+						"default": true
+					},
+					"metadata": {
+						"type": "object",
+						"additionalProperties": true,
+						"default": {}
+					},
+					"score": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1
+					}
+				}
+			},
+			"CatalogSearchResponse": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["results", "count", "fallback"],
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/MerchantProduct"
+						}
+					},
+					"count": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"fallback": {
+						"type": "boolean",
+						"default": false
 					}
 				}
 			},

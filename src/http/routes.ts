@@ -10,11 +10,13 @@ import { shoppingConversationTurnSchema } from "../domain/agents/contracts.js";
 import { errorCodes } from "../domain/error-codes.js";
 import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
+import { CatalogSearchRequestSchema } from "../schemas/catalog.schema.js";
 import { AgentChatRequestSchema } from "../schemas/intent.schema.js";
 import type { AgentAuthService } from "../services/agent-auth.js";
 import { AGENT_SCOPES } from "../services/agent-auth.js";
 import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
+import type { CatalogSearchService } from "../services/agents/catalog-search.js";
 import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import type { ItemService } from "../services/item-service.js";
@@ -45,6 +47,12 @@ export type AgentRoutes = Readonly<{
 	 * otherwise. Lazy so the LLM client is built on first message.
 	 */
 	chat?: () => DiscoveryAgentService;
+	/**
+	 * Optional vector catalog search (Module 6). Present only when the runtime can
+	 * compose the Qdrant catalog engine; the `/v1/agent/catalog/search` route
+	 * stays unregistered otherwise.
+	 */
+	catalog?: CatalogSearchService;
 }>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
@@ -254,6 +262,23 @@ export function registerRoutes(
 					{ sessionId: body.sessionId },
 				);
 				return { status: "success", intent };
+			},
+		);
+	}
+
+	if (agentRoutes.catalog !== undefined) {
+		app.post(
+			"/v1/agent/catalog/search",
+			{
+				schema: {
+					body: CatalogSearchRequestSchema,
+				},
+			},
+			async (request) => {
+				const token = requireAgentToken(request);
+				await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.SEARCH);
+				const body = CatalogSearchRequestSchema.parse(request.body);
+				return agentRoutes.catalog?.search(body);
 			},
 		);
 	}

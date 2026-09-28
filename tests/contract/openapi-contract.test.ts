@@ -35,6 +35,17 @@ describe("OpenAPI contract", () => {
 		expect(schemas.DiscoveryShoppingIntent).toBeDefined();
 	});
 
+	test("catalog search route is declared with its request/response schemas", async () => {
+		const spec = await loadSpec();
+		expect(spec.paths?.["/v1/agent/catalog/search"]?.post?.operationId).toBe(
+			"agentCatalogSearch",
+		);
+		const schemas = spec.components?.schemas ?? {};
+		expect(schemas.CatalogSearchRequest).toBeDefined();
+		expect(schemas.CatalogSearchResponse).toBeDefined();
+		expect(schemas.MerchantProduct).toBeDefined();
+	});
+
 	test("server exposes canonical spec", async () => {
 		const app = await buildServer();
 		const response = await app.inject({

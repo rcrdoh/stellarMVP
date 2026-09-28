@@ -17,7 +17,9 @@ import type { StellarPaymentGateway } from "../integrations/stellar.js";
 import { AgentAuthService } from "../services/agent-auth.js";
 import { AgentCheckoutService } from "../services/agent-checkout.js";
 import { AgentSearchService } from "../services/agent-search.js";
+import { CatalogSearchService } from "../services/agents/catalog-search.js";
 import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
+import type { CatalogSearchEngine } from "../services/agents/ports/catalog-search-engine.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
@@ -50,6 +52,12 @@ export type AgentIntegrations = Readonly<{
 	 * When absent the `/v1/agent/chat` route stays unregistered.
 	 */
 	discoveryAgent?: () => DiscoveryAgentService;
+	/**
+	 * Vector merchant catalog engine (Module 6). When provided the
+	 * `/v1/agent/catalog/search` route is registered; when absent it stays
+	 * unregistered, keeping the default agent surface unchanged.
+	 */
+	catalogEngine?: CatalogSearchEngine;
 }>;
 
 export type AppIntegrations = Readonly<{
@@ -95,6 +103,9 @@ function buildAgentRoutes(
 		...(agent.discoveryAgent === undefined
 			? {}
 			: { chat: agent.discoveryAgent }),
+		...(agent.catalogEngine === undefined
+			? {}
+			: { catalog: new CatalogSearchService(agent.catalogEngine) }),
 	};
 }
 
