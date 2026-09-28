@@ -136,6 +136,34 @@ Los adaptadores concretos viven en `src/integrations/wallets/`:
   `in-memory-wallet-session-store.ts`: persistencia de sesión (navegador y
   doble de prueba/fallback).
 
+#### UI Shell (Module 4)
+
+`src/ui/` contiene una capa de presentación framework-agnostic (sin React ni
+dependencias de build de UI) construida solo sobre `document`, `EventTarget` y
+`CustomEvent`. Las filas de `src/ui/*` no importan SDK de wallet, `window` ni
+`localStorage`: reciben `WalletController`, `CartStore` y clientes de búsqueda
+por inyección, de forma que el mismo código corre en navegador y en
+`happy-dom` para pruebas.
+
+- `dom.ts`: helper `requireElement` que valida el contenedor raíz.
+- `stores/cart-store.ts`: `CartStore extends EventTarget` con
+  `ProductOffer`/`CartSnapshot`; clona y congela copias del producto, emite un
+  snapshot inmutable en cada mutación y expone `add`/`remove`/`clear`/
+  `open`/`close`/`toggle`.
+- `wallet-controller.ts`: `WalletController extends EventTarget` envuelve el
+  `WalletSessionService` en eventos de UI (`wallet-changed`,
+  `wallet-connecting`, `wallet-error`); el mensaje de error es el código de la
+  taxonomía (p. ej. `wallet_connection_rejected`).
+- `components/`: `createHeader`/`createAppLayout` (badge de carrito y estado de
+  sesión), `createProductCard` (texto por `textContent` para evitar XSS),
+  `skeleton.ts` (placeholders de carga), `product-stream.ts` (submit del form,
+  estado vacío y errores RFC 9457 vía `toProblem` inyectado),
+  `shopping-cart-drawer.ts` (refleja el snapshot, borra ítems e invoca el
+  callback de checkout) y `transaction-progress.ts` (proyecta
+  `PaymentIntentStatus` del dominio a pasos de UI).
+
+La suite `tests/ui.test.ts` valida esta capa sobre `happy-dom` sin React.
+
 ### Capa 2: Search Agent y catálogo
 
 El Search Agent recibe `ProductSearchRequest` y coordina fuentes en paralelo,

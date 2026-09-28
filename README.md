@@ -23,6 +23,7 @@ src/
   http/         Servidor, rutas y serializacion de errores
   integrations/ Adaptadores reemplazables
   services/     Casos de uso
+  ui/           Capa de presentacion framework-agnostic (sin React)
   index.ts      Entrada del proceso
 config/         TOML versionable con perfiles dev, staging y prod
 docs/           SDD, errores, SOLID, Docker y ADR

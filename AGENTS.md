@@ -55,3 +55,42 @@ bun run check
   librerias faltantes, revisa `LD_LIBRARY_PATH`; un valor espurio apuntando a
   `/tmp/_MEI*` rompe el enlazado dinamico. Ejecuta las herramientas con
   `LD_LIBRARY_PATH= ...` para restaurar los enlaces del sistema.
+
+## Git Feature Branch Workflow
+
+As the OpenHands agent, use this workflow when implementing a feature requested
+in chat. The feature branch itself is the deliverable — no pull request is
+needed.
+
+### 1. Create Branch
+Create a new git branch with this naming pattern:
+agent/task-{TIMESTAMP}-{feature-name}
+Example: `agent/task-1704067200-auth-feature`
+
+Command:
+```bash
+git checkout -b agent/task-$(date +%s)-{feature-name}
+```
+
+### 2. Implement Feature
+Write the code for the requested feature:
+- Create new files as needed
+- Follow existing code patterns
+- Add comments where appropriate
+
+### 3. Commit Code
+Commit your changes with a clear message:
+```bash
+git commit -m "[AGENT:feature-name] {description of what was implemented}
+
+Co-authored-by: openhands <openhands@all-hands.dev>"
+```
+
+### 4. Push Branch
+Push your branch to remote:
+```bash
+git push origin agent/task-{TIMESTAMP}-{feature-name}
+```
+
+The code is now in its own feature branch, ready for review. No pull request
+is created — the branch is published and handled separately.

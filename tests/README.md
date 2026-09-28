@@ -22,3 +22,11 @@ Pruebas con `bun test`.
   schemas), el ciclo de vida de `WalletSessionService` con dobles en memoria
   (connect/restore/disconnect/sign y mapeo de errores a `SVC-WALLET-*`) y el
   adaptador `StellarWalletKitConnector` con un SDK falso cargado bajo demanda.
+- `tests/ui.test.ts`: valida la capa UI framework-agnostic sobre `happy-dom`:
+  `CartStore` (snapshots inmutables, add/remove/clear/open), tarjetas de
+  producto y skeleton (texto vía `textContent`), stream de productos (form
+  submit, estado vacío, errores RFC 9457 vía `toProblem`), drawer del carrito
+  (snapshot, borrado, callback de checkout), proyección de
+  `PaymentIntentStatus` a pasos de UI, `WalletController` (connect/restore/
+  disconnect, persistencia y mapeo de errores) y el layout/header (badge del
+  carrito y estado de sesión).
