@@ -7,6 +7,17 @@ describe("OpenAPI contract", () => {
 		expect(validateSpec(await loadSpec())).toEqual([]);
 	});
 
+	test("shopping route is declared with its discriminated union schemas", async () => {
+		const spec = await loadSpec();
+		expect(spec.paths?.["/v1/agent/shopping"]?.post?.operationId).toBe(
+			"agentShopping",
+		);
+		const schemas = spec.components?.schemas ?? {};
+		expect(schemas.ShoppingConversationTurn).toBeDefined();
+		expect(schemas.ShoppingState).toBeDefined();
+		expect(schemas.ShoppingResumeEvent).toBeDefined();
+	});
+
 	test("server exposes canonical spec", async () => {
 		const app = await buildServer();
 		const response = await app.inject({

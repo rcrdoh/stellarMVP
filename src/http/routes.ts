@@ -6,6 +6,7 @@ import {
 	agentCheckoutRequestSchema,
 	agentSearchQuerySchema,
 } from "../domain/agent.js";
+import { shoppingConversationTurnSchema } from "../domain/agents/contracts.js";
 import { errorCodes } from "../domain/error-codes.js";
 import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
@@ -13,6 +14,7 @@ import type { AgentAuthService } from "../services/agent-auth.js";
 import { AGENT_SCOPES } from "../services/agent-auth.js";
 import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
+import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import type { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
 import type { AppIntegrations } from "./server.js";
@@ -29,6 +31,12 @@ export type AgentRoutes = Readonly<{
 	auth: AgentAuthService;
 	search: AgentSearchService;
 	checkout: AgentCheckoutService;
+	/**
+	 * Optional shopping conversation. Present only when the runtime can compose
+	 * the Shopping Agent; the route stays unregistered otherwise. It is a lazy
+	 * factory so the provider graph boots on first conversation, not at startup.
+	 */
+	shopping?: () => Promise<AgentShoppingConversationService>;
 }>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
@@ -199,4 +207,23 @@ export function registerRoutes(
 			return reply.code(201).send(order);
 		},
 	);
+
+	if (agentRoutes.shopping !== undefined) {
+		const resolveShopping = agentRoutes.shopping;
+		app.post(
+			"/v1/agent/shopping",
+			{
+				schema: {
+					body: shoppingConversationTurnSchema,
+				},
+			},
+			async (request) => {
+				const token = requireAgentToken(request);
+				await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.SHOPPING);
+				const turn = shoppingConversationTurnSchema.parse(request.body);
+				const shopping = await resolveShopping();
+				return shopping.advance(turn);
+			},
+		);
+	}
 }

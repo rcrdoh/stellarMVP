@@ -100,6 +100,42 @@ reconcilia la transacción con Horizon antes de marcar la orden como pagada.
 PostgreSQL mantiene quotes, órdenes, intents y attempts; MongoDB solo mantiene
 checkpoints de LangGraph.
 
+#### Sesión de wallet (Module 3)
+
+`src/domain/wallets/contracts.ts` define los contratos puros de la integración:
+`walletNetworkSchema`/`walletNetworkPassphrases` (mapeo red → passphrase de
+firma), `stellarAddressSchema`, `walletSessionSchema`,
+`signTransactionRequestSchema`, `signedTransactionSchema` (`signedTxXdr` +
+`signerAddress`) y `truncateAddress`. Estas piezas no referencian SDK, `window`
+ni `localStorage`, por lo que son válidas en Bun y en navegador.
+
+`src/services/wallets/wallet-session-service.ts` orquesta el ciclo de vida sobre
+dos puertos inyectados:
+
+- `WalletConnector` (`src/services/wallets/ports/wallet-connector.ts`): `connect`,
+  `getAddress`, `signTransaction`, `disconnect`, `isAvailable`, `walletId`.
+- `WalletSessionStore` (`src/services/wallets/ports/wallet-session-store.ts`):
+  `save`, `load`, `clear`.
+
+El servicio no importa el SDK: `connect` valida la cuenta con
+`walletSessionSchema`, `restore` re-verifica la dirección viva y descarta sesiones
+rancias, y `signTransaction` exige una sesión activa y construye el
+`SignTransactionRequest` completo (red + address) antes de firmar. Los fallos del
+proveedor se normalizan a la taxonomía: rechazo de usuario a
+`SVC-WALLET-3003`, cualquier otro error a `SVC-WALLET-5001`, y falta de
+proveedor/sesión a `SVC-WALLET-3002`/`SVC-WALLET-3001`.
+
+Los adaptadores concretos viven en `src/integrations/wallets/`:
+
+- `stellar-wallets-kit-loader.ts`: carga diferida de
+  `@creit.tech/stellar-wallets-kit` solo en un runtime con `window`; el paquete
+  arrastra Preact/`@reown/appkit` y rompería al importarse en servidor.
+- `stellar-wallets-kit-connector.ts`: `WalletConnector` sobre el SDK cargado,
+  mapea la red a su passphrase y devuelve `{ signedTxXdr, signerAddress }`.
+- `local-storage-wallet-session-store.ts` y
+  `in-memory-wallet-session-store.ts`: persistencia de sesión (navegador y
+  doble de prueba/fallback).
+
 ### Capa 2: Search Agent y catálogo
 
 El Search Agent recibe `ProductSearchRequest` y coordina fuentes en paralelo,
@@ -326,6 +362,24 @@ aprobación queda registrada en el checkpoint como estado `authorized`; no crea
 checkout, orden ni pago. La factory permite inyectar Search Agent y cotizador;
 ninguno de esos proveedores está implementado ni conectado al servidor HTTP.
 
+Implementado en el Módulo 2 (eSDD):
+
+- **Esquema Postgres/Supabase** en `supabase/migrations/`: `sources`,
+  `products_raw`, `products_ranked`, `search_sessions`, `search_results`,
+  `wallets`, `purchase_intents` y `purchase_records`. `purchase_intents` marca
+  snapshot/amount/destination/currency como inmutables mediante trigger y
+  `search_results` expone `ttl_seconds`/`expires_at` para invalidar precios.
+- **Aislamiento de agentes por RLS**: roles grupales `discovery_agent` y
+  `payment_agent` con grants disjuntos y políticas RLS. Discovery solo accede a
+  catálogo/búsqueda; payment solo a intents pendientes y liquidación. Un rol no
+  puede leer ni escribir las tablas del otro aunque comprometa su credencial.
+- **Checkpointer Postgres durable** (`createPostgresAgentCheckpointer` en
+  `src/integrations/agents/postgres-checkpointer.ts`), construido en
+  `agent-runtime.ts` desde `SUPABASE_DB_URL` (fallback a `DATABASE_URL`) y
+  expuesto como `AgentIntegrations.checkpointer`. Reemplaza el estado volátil en
+  memoria para que la conversación del agente sobreviva reinicios. `close()`
+  libera el pool.
+
 Persisten como faltantes la extracción robusta de filtros, los límites de
 presupuesto por llamadas/tokens (el ciclo ReAct sí tiene límite de iteraciones),
 consumo único de aprobación, implementación del Search Agent, revalidación
@@ -334,7 +388,9 @@ comercial de cotización y composición/ciclo de vida del agente en el servidor.
 Faltan: worker de ingesta, servicios/repos transaccionales de catálogo y
 comercio, DTOs completos, adaptadores de fuente, checkout/payment/fulfillment,
 eventos y contratos OpenAPI. La incorporación del driver no demuestra aún
-compatibilidad operativa en Render ni una política de retención.
+compatibilidad operativa en Render ni una política de retención. El checkpointer
+Postgres tampoco se ejecuta contra una base viva en las pruebas: la suite valida
+la forma del DDL y el contrato del factory, no una conexión real.
 
 ## Referencias primarias
 

@@ -151,6 +151,31 @@ export type ShoppingResumeEvent = z.infer<typeof shoppingResumeEventSchema>;
 export const productSearchRequestSchema = shoppingIntentSchema;
 export type ProductSearchRequest = ShoppingIntent;
 
+/**
+ * Persisted-session reference for a shopping conversation started through the
+ * agent API. `threadId` is what the graph checkpointer keys on; `sessionId` is
+ * the caller-supplied correlation id.
+ */
+export const shoppingConversationTurnSchema = z.discriminatedUnion("type", [
+	z
+		.object({
+			type: z.literal("start"),
+			input: shoppingStartInputSchema,
+			threadId: z.string().min(1).max(200),
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("resume"),
+			event: shoppingResumeEventSchema,
+			threadId: z.string().min(1).max(200),
+		})
+		.strict(),
+]);
+export type ShoppingConversationTurn = z.infer<
+	typeof shoppingConversationTurnSchema
+>;
+
 export const searchStateSchema = z.object({
 	query: z.string().min(1),
 	status: z.enum(["pending", "searching", "completed", "failed"]),

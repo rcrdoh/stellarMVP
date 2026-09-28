@@ -17,7 +17,10 @@ const app = await buildServer({
 	...(agentRuntime === undefined
 		? {}
 		: {
-				agent: agentRuntime.integrations,
+				agent: {
+					...agentRuntime.integrations,
+					shoppingConversation: agentRuntime.getShoppingConversation,
+				},
 				closeClient: agentRuntime.close,
 			}),
 	...(paymentRuntime === undefined ? {} : { payments: paymentRuntime }),

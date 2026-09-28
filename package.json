@@ -10,10 +10,12 @@
 		"dev": "bun --watch src/index.ts",
 		"format": "biome format --write .",
 		"spec:check": "bun run scripts/validate-openapi.ts",
+		"db:smoke": "bun run scripts/migrate-smoke.ts",
 		"start": "bun src/index.ts",
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@creit.tech/stellar-wallets-kit": "^2.7.0",
 		"@fastify/rate-limit": "^11.2.0",
 		"@langchain/langgraph": "^1.4.17",
 		"@langchain/langgraph-checkpoint-mongodb": "^1.4.1",

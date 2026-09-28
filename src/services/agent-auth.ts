@@ -6,6 +6,7 @@ import type { RedisLike } from "../integrations/redis.js";
 export const AGENT_SCOPES = {
 	SEARCH: "agent:search",
 	CHECKOUT: "agent:checkout",
+	SHOPPING: "agent:shopping",
 } as const;
 
 export type AgentScope = (typeof AGENT_SCOPES)[keyof typeof AGENT_SCOPES];

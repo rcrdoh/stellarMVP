@@ -2,8 +2,19 @@
 
 Documentacion de arquitectura, decisiones y flujo de trabajo.
 
-- `adr/`: `0001` framework base, `0002` taxonomia de errores, `0003` token de
-  servicio y `0004` comercio asistido por agentes (ACP x402).
+- `adr/`: indice completo de decisiones de arquitectura (0001–0005); ver la
+  tabla de abajo.
+
+## ADR
+
+| ADR | Title | Status |
+| --- | --- | --- |
+| [0001](adr/0001-bun-fastify-framework.md) | Bun, TypeScript y Fastify como framework base | Accepted |
+| [0002](adr/0002-error-taxonomy.md) | Error Taxonomy as Public Error Contract | Accepted |
+| [0003](adr/0003-service-token-for-protected-routes.md) | Service Token for Protected Routes | Accepted |
+| [0004](adr/0004-agentic-commerce.md) | Arquitectura para comercio asistido por agentes (ACP x402) | Proposed |
+| [0005](adr/0005-stellar-testnet-payment-intents.md) | Reconciliación de intents de pago Stellar Testnet | Accepted |
+
 - `Taxonomia_Errores_v1.md`: contrato normativo de errores.
 - `docker.md`: manual de build y ejecucion con Docker.
 - `agent-retriever-stack.md`: arquitectura propuesta, dependencias y pendientes

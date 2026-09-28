@@ -50,3 +50,31 @@ export class AIServiceUnavailableError extends AppError {
 		this.name = "AIServiceUnavailableError";
 	}
 }
+
+export class WalletNotConnectedError extends AppError {
+	constructor(_message = "Wallet not connected") {
+		super(errorCodes.WALLET_NOT_CONNECTED);
+		this.name = "WalletNotConnectedError";
+	}
+}
+
+export class WalletNotAvailableError extends AppError {
+	constructor(_message = "Wallet provider unavailable") {
+		super(errorCodes.WALLET_NOT_AVAILABLE);
+		this.name = "WalletNotAvailableError";
+	}
+}
+
+export class WalletConnectionRejectedError extends AppError {
+	constructor(_message = "Wallet connection rejected") {
+		super(errorCodes.WALLET_CONNECTION_REJECTED);
+		this.name = "WalletConnectionRejectedError";
+	}
+}
+
+export class WalletProviderUnavailableError extends AppError {
+	constructor(_message = "Wallet provider did not respond") {
+		super(errorCodes.WALLET_PROVIDER_UNAVAILABLE);
+		this.name = "WalletProviderUnavailableError";
+	}
+}

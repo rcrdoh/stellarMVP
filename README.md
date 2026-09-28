@@ -27,6 +27,7 @@ src/
 config/         TOML versionable con perfiles dev, staging y prod
 docs/           SDD, errores, SOLID, Docker y ADR
 specs/          OpenAPI canonico y reglas de contrato
+supabase/       Migraciones SQL (esquema de comercio y RLS por agente)
 scripts/        Automatizacion SDD local
 tests/          Pruebas de contrato y servicios
 AGENTS.md       Reglas estrictas para agentes de codigo
@@ -87,6 +88,53 @@ bun test
 bun run check-types
 bun run check
 ```
+
+## API Endpoints
+
+Contrato canonico en `specs/openapi.json`. Las rutas `GET /`, `/openapi.json`,
+`/docs` y los probes de `/v1/health/*` son publicos.
+
+### Sistema y salud
+
+| Metodo | Ruta | Auth | Descripcion |
+| --- | --- | --- | --- |
+| GET | `/` | Publico | Redirige a `/docs` |
+| GET | `/openapi.json` | Publico | Spec OpenAPI canonico |
+| GET | `/docs` | Publico | Referencia interactiva (Scalar) |
+| GET | `/v1/health/live` | Publico | Liveness probe |
+| GET | `/v1/health/ready` | Publico | Readiness probe (incluye estado de integraciones) |
+| GET | `/api/hello_api` | Publico | Conectividad basica |
+
+### Catalogo de items
+
+| Metodo | Ruta | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/items` | Service Token | Crea un item |
+| GET | `/v1/items/{itemId}` | Service Token | Obtiene detalle de un item |
+
+Requieren `Authorization: Bearer <SERVICE_TOKEN>` solo cuando `SERVICE_TOKEN`
+esta configurado (ver seccion Configuracion).
+
+### Comercio asistido por agentes (ACP x402)
+
+Disponibles unicamente cuando las integraciones de agente estan habilitadas
+(`/v1/agent/*` no se registran por defecto). Requieren token de agente.
+
+| Metodo | Ruta | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/agent/search` | Agent Token (scope search) | Busqueda del agente |
+| POST | `/v1/agent/checkout` | Agent Token (scope checkout) + `X-402-Payment-Token` | Inicia checkout ACP x402 |
+
+### Stellar Payment Intents
+
+Requieren `PAYMENTS_ENABLED=true`, `SERVICE_TOKEN` no vacio y
+`Authorization: Bearer <SERVICE_TOKEN>` mas `X-Principal-Id`.
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| POST | `/v1/payment-intents` | Crea un payment intent (requiere `Idempotency-Key`) |
+| GET | `/v1/payment-intents/{intentId}` | Consulta el estado de un payment intent |
+| POST | `/v1/payment-intents/{intentId}/submission` | Envia la transaccion firmada (XDR) |
 
 ## Spec Driven Development
 

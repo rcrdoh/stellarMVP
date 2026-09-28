@@ -26,6 +26,7 @@ export const envSchema = z
 		AGENT_COMMERCE_ENABLED: z.coerce.boolean().default(false),
 		PAYMENTS_ENABLED: z.coerce.boolean().default(false),
 		DATABASE_URL: z.string().default(""),
+		SUPABASE_DB_URL: z.string().default(""),
 		REDIS_URL: z.string().default(""),
 		QDRANT_URL: z.string().default(""),
 		QDRANT_API_KEY: z.string().default(""),

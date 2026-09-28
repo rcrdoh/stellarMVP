@@ -55,7 +55,7 @@ describe("error code registry", () => {
 				(definition) => definition.code.split("-")[1],
 			),
 		);
-		expect(domains).toEqual(new Set(["CORE", "PAYMENT"]));
+		expect(domains).toEqual(new Set(["CORE", "PAYMENT", "WALLET"]));
 	});
 
 	test("behavior is complete and agent hints are closed", () => {
