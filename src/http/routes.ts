@@ -10,10 +10,12 @@ import { shoppingConversationTurnSchema } from "../domain/agents/contracts.js";
 import { errorCodes } from "../domain/error-codes.js";
 import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
+import { AgentChatRequestSchema } from "../schemas/intent.schema.js";
 import type { AgentAuthService } from "../services/agent-auth.js";
 import { AGENT_SCOPES } from "../services/agent-auth.js";
 import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
+import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import type { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
@@ -37,6 +39,12 @@ export type AgentRoutes = Readonly<{
 	 * factory so the provider graph boots on first conversation, not at startup.
 	 */
 	shopping?: () => Promise<AgentShoppingConversationService>;
+	/**
+	 * Optional Discovery Agent. Present only when the runtime can compose the
+	 * free-text intent extractor; the `/v1/agent/chat` route stays unregistered
+	 * otherwise. Lazy so the LLM client is built on first message.
+	 */
+	chat?: () => DiscoveryAgentService;
 }>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
@@ -223,6 +231,29 @@ export function registerRoutes(
 				const turn = shoppingConversationTurnSchema.parse(request.body);
 				const shopping = await resolveShopping();
 				return shopping.advance(turn);
+			},
+		);
+	}
+
+	if (agentRoutes.chat !== undefined) {
+		const resolveChat = agentRoutes.chat;
+		app.post(
+			"/v1/agent/chat",
+			{
+				schema: {
+					body: AgentChatRequestSchema,
+				},
+			},
+			async (request) => {
+				const token = requireAgentToken(request);
+				await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.DISCOVERY);
+				const body = AgentChatRequestSchema.parse(request.body);
+				const discovery = resolveChat();
+				const intent = await discovery.invoke(
+					{ message: body.message },
+					{ sessionId: body.sessionId },
+				);
+				return { status: "success", intent };
 			},
 		);
 	}

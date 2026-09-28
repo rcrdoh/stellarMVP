@@ -7,6 +7,7 @@ export const AGENT_SCOPES = {
 	SEARCH: "agent:search",
 	CHECKOUT: "agent:checkout",
 	SHOPPING: "agent:shopping",
+	DISCOVERY: "agent:discovery",
 } as const;
 
 export type AgentScope = (typeof AGENT_SCOPES)[keyof typeof AGENT_SCOPES];

@@ -574,6 +574,91 @@
 				]
 			}
 		},
+		"/v1/agent/chat": {
+			"post": {
+				"operationId": "agentChat",
+				"tags": ["agent"],
+				"summary": "Extract a structured shopping intent from free text",
+				"description": "Runs the LangGraph Discovery Agent to translate an unstructured message into a best-effort ShoppingIntent. Requires the agent:discovery scope. Rate limited per agent token; upstream LLM failures surface as 503.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AgentChatRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Structured intent extracted from the message",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AgentChatResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "RFC 9457 problem response",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"agentToken": []
+					}
+				]
+			}
+		},
 		"/v1/payment-intents": {
 			"post": {
 				"operationId": "createPaymentIntent",
@@ -1364,6 +1449,90 @@
 					"failed",
 					"cancelled"
 				]
+			},
+			"AgentChatRequest": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["sessionId", "message"],
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"message": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 2000
+					}
+				}
+			},
+			"AgentChatResponse": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["status", "intent"],
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["success"]
+					},
+					"intent": {
+						"$ref": "#/components/schemas/DiscoveryShoppingIntent"
+					}
+				}
+			},
+			"DiscoveryShoppingIntent": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": [
+					"rawQuery",
+					"keywords",
+					"currency",
+					"specifications",
+					"preferredBrands",
+					"isReadyToPurchase"
+				],
+				"properties": {
+					"rawQuery": {
+						"type": "string",
+						"minLength": 1
+					},
+					"category": {
+						"type": "string"
+					},
+					"keywords": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"default": []
+					},
+					"maxPrice": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"currency": {
+						"type": "string",
+						"default": "USD"
+					},
+					"specifications": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "string"
+						},
+						"default": {}
+					},
+					"preferredBrands": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"default": []
+					},
+					"isReadyToPurchase": {
+						"type": "boolean",
+						"default": false
+					}
+				}
 			},
 			"ShoppingIntent": {
 				"type": "object",

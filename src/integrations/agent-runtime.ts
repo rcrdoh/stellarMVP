@@ -4,6 +4,7 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { Horizon, Networks, TransactionBuilder } from "@stellar/stellar-sdk";
 import type { Env } from "../config/env.js";
 import type { AgentIntegrations } from "../http/server.js";
+import { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
 import { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import { CatalogMerchantSearchAgent } from "./agents/catalog-merchant-search-agent.js";
 import { CatalogShoppingQuoteProvider } from "./agents/catalog-quote-provider.js";
@@ -87,6 +88,20 @@ export async function closeAgentCheckpointer(): Promise<void> {
  * checkpointer: one composed agent per process, reset by `close()`.
  */
 let cachedShoppingConversation: AgentShoppingConversationService | null = null;
+
+/**
+ * Cached Discovery Agent. Module-scoped like the other lazily composed pieces;
+ * the default constructor builds the LLM client on first message.
+ */
+let cachedDiscoveryAgent: DiscoveryAgentService | null = null;
+
+/** Returns the process-wide Discovery Agent, constructing it on first use. */
+export function getDiscoveryAgent(): DiscoveryAgentService {
+	if (cachedDiscoveryAgent === null) {
+		cachedDiscoveryAgent = new DiscoveryAgentService();
+	}
+	return cachedDiscoveryAgent;
+}
 
 /**
  * Composes the shopping agent from its real adapters: the vector-backed
@@ -208,12 +223,14 @@ export async function createAgentRuntime(
 			embeddings: openai,
 			vectors,
 			vectorCollection: runtimeEnv.QDRANT_COLLECTION,
+			discoveryAgent: () => getDiscoveryAgent(),
 		},
 		getCheckpointer: () => getAgentCheckpointer(runtimeEnv),
 		getShoppingConversation: () =>
 			getShoppingConversation(runtimeEnv, { embeddings: openai, vectors }),
 		close: async () => {
 			cachedShoppingConversation = null;
+			cachedDiscoveryAgent = null;
 			await closeAgentCheckpointer();
 			await pool.end();
 			await redis.quit().catch(() => undefined);

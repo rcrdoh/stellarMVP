@@ -18,6 +18,23 @@ describe("OpenAPI contract", () => {
 		expect(schemas.ShoppingResumeEvent).toBeDefined();
 	});
 
+	test("chat route is declared with its discovery intent schemas", async () => {
+		const spec = await loadSpec();
+		expect(spec.paths?.["/v1/agent/chat"]?.post?.operationId).toBe("agentChat");
+		expect(spec.paths?.["/v1/agent/chat"]?.post?.security).toEqual([
+			{ agentToken: [] },
+		]);
+		const responses = spec.paths?.["/v1/agent/chat"]?.post?.responses as
+			| Record<string, unknown>
+			| undefined;
+		expect(responses?.["429"]).toBeDefined();
+		expect(responses?.["503"]).toBeDefined();
+		const schemas = spec.components?.schemas ?? {};
+		expect(schemas.AgentChatRequest).toBeDefined();
+		expect(schemas.AgentChatResponse).toBeDefined();
+		expect(schemas.DiscoveryShoppingIntent).toBeDefined();
+	});
+
 	test("server exposes canonical spec", async () => {
 		const app = await buildServer();
 		const response = await app.inject({

@@ -17,6 +17,7 @@ import type { StellarPaymentGateway } from "../integrations/stellar.js";
 import { AgentAuthService } from "../services/agent-auth.js";
 import { AgentCheckoutService } from "../services/agent-checkout.js";
 import { AgentSearchService } from "../services/agent-search.js";
+import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
@@ -44,6 +45,11 @@ export type AgentIntegrations = Readonly<{
 	 * so the provider graph is built on first conversation, not at startup.
 	 */
 	shoppingConversation?: () => Promise<AgentShoppingConversationService>;
+	/**
+	 * Lazy accessor for the Discovery Agent (free-text -> structured intent).
+	 * When absent the `/v1/agent/chat` route stays unregistered.
+	 */
+	discoveryAgent?: () => DiscoveryAgentService;
 }>;
 
 export type AppIntegrations = Readonly<{
@@ -86,6 +92,9 @@ function buildAgentRoutes(
 		...(agent.shoppingConversation === undefined
 			? {}
 			: { shopping: agent.shoppingConversation }),
+		...(agent.discoveryAgent === undefined
+			? {}
+			: { chat: agent.discoveryAgent }),
 	};
 }
 
@@ -115,15 +124,20 @@ export async function buildServer(options: BuildServerOptions = {}) {
 			redis: resolvedIntegrations.agent.redis,
 			max: 20,
 			timeWindow: "1 minute",
-			errorResponseBuilder: () => ({
-				type: "https://api.stellarmvp.dev/errors/rate-limited",
-				title: "rate_limited",
-				status: 429,
-				code: "SVC-CORE-5003",
-				category: "DEPENDENCY",
-				detail_key: "core.rate_limited",
-				detail: "Rate limit exceeded",
-			}),
+			// Resilience posture: only the agentic-commerce surface is throttled.
+			// Everything else (health, docs, catalog) is left untouched so a burst
+			// of LLM-driven traffic cannot starve the read APIs.
+			allowList: (request) => !request.url.startsWith("/v1/agent/"),
+			// The plugin throws this result into the Fastify error pipeline, so it
+			// must carry `statusCode: 429` to be classified into the shared
+			// `RATE_LIMITED` Problem response (SVC-CORE-5003) with Retry-After.
+			errorResponseBuilder: () => {
+				const error = new Error("Rate limit exceeded") as Error & {
+					statusCode: number;
+				};
+				error.statusCode = 429;
+				return error;
+			},
 		});
 	}
 

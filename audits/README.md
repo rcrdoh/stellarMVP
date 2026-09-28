@@ -11,3 +11,5 @@ Informes de auditoría del repositorio y del estado del eSDD.
 | 2026-09-28 | [2026-09-28-esdd-m2-remediation.md](2026-09-28-esdd-m2-remediation.md) | eSDD residual M2: composición de agentes y ruta `POST /v1/agent/shopping` |
 | 2026-09-28 | [2026-09-28-repo-status-post-esdd-m2.md](2026-09-28-repo-status-post-esdd-m2.md) | Estado tras el eSDD "Module 2 Final Integration & Verification" |
 | 2026-09-28 | [2026-09-28-module3-wallet-status.md](2026-09-28-module3-wallet-status.md) | Módulo 3: integración de wallet Web3 (puerto libre de DOM, DoD checklist) |
+| 2026-09-28 | [2026-09-28-module4-ui-status.md](2026-09-28-module4-ui-status.md) | Módulo 4: UI shell, carrito y layout de flujo (sin React, DoD checklist) |
+| 2026-09-28 | [2026-09-28-module5-resilience-status.md](2026-09-28-module5-resilience-status.md) | Módulo 5: resiliencia, rate limiting y manejo de errores |
