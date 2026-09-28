@@ -30,3 +30,4 @@ tests/**/*.js
 .idea/
 .vscode/
 .audits/
+audits/
