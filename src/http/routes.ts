@@ -61,6 +61,21 @@ export type AgentRoutes = Readonly<{
 	 * unregistered otherwise.
 	 */
 	ranking?: () => ProductHandoffService;
+	/**
+	 * Optional payment firewall (Module 8). When provided, the
+	 * `/v1/agent/checkout` route additionally verifies the service token's
+	 * `checkout:execute` scope and reserves the amount against its lifetime
+	 * spend cap before delegating to the checkout service (Audit H2).
+	 */
+	firewall?: PaymentFirewall;
+}>;
+
+/**
+ * Spend-scope enforcement hook for the checkout route. Implemented by the
+ * Payment Agent service so transport code depends on a narrow contract.
+ */
+export type PaymentFirewall = Readonly<{
+	authorize(input: { token: string; amountAtomic: number }): Promise<void>;
 }>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
@@ -111,6 +126,19 @@ function requireAgentToken(request: FastifyRequest): string {
 		throw new AppError(errorCodes.CREDENTIALS_MISSING);
 	}
 	return token;
+}
+
+/**
+ * Convert a decimal amount string ("19.99") into atomic units (1999). Assumes
+ * two fractional digits, matching the checkout contract; callers validating via
+ * `agentCheckoutRequestSchema` guarantee the numeric shape upstream.
+ */
+function decimalToAtomic(amount: string): number {
+	const dot = amount.indexOf(".");
+	const whole = dot === -1 ? amount : amount.slice(0, dot);
+	const fraction = dot === -1 ? "" : amount.slice(dot + 1);
+	const padded = `${fraction}00`.slice(0, 2);
+	return Number.parseInt(whole, 10) * 100 + Number.parseInt(padded, 10);
 }
 
 export function registerRoutes(
@@ -223,6 +251,12 @@ export function registerRoutes(
 				? paymentTokenHeader[0]
 				: paymentTokenHeader;
 			const input = agentCheckoutRequestSchema.parse(request.body);
+			if (agentRoutes.firewall !== undefined) {
+				await agentRoutes.firewall.authorize({
+					token,
+					amountAtomic: decimalToAtomic(input.amount),
+				});
+			}
 			const order = await agentRoutes.checkout.checkout({
 				token,
 				paymentToken,

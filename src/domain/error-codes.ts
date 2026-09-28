@@ -213,6 +213,15 @@ export const errorCodes = {
 		behavior: behavior("never", "none", "contact_support", "NONE"),
 		emittable: true,
 	}),
+	SPEND_CAP_EXCEEDED: defineErrorCode({
+		code: "SVC-CORE-2005",
+		title: "spend_cap_exceeded",
+		status: 403,
+		category: "AUTHN_AUTHZ",
+		detail_key: "core.spend_cap_exceeded",
+		behavior: behavior("never", "none", "contact_support", "NONE"),
+		emittable: true,
+	}),
 	IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: defineErrorCode({
 		code: "SVC-CORE-4001",
 		title: "idempotency_key_reused_with_different_payload",

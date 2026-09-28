@@ -19,7 +19,9 @@ import { AgentCheckoutService } from "../services/agent-checkout.js";
 import { AgentSearchService } from "../services/agent-search.js";
 import { CatalogSearchService } from "../services/agents/catalog-search.js";
 import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
+import { PaymentAgentService } from "../services/agents/payment-agent.js";
 import type { CatalogSearchEngine } from "../services/agents/ports/catalog-search-engine.js";
+import type { ServiceTokenStore } from "../services/agents/ports/service-token-store.js";
 import type { ProductHandoffService } from "../services/agents/product-handoff.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import { ItemService } from "../services/item-service.js";
@@ -65,6 +67,12 @@ export type AgentIntegrations = Readonly<{
 	 * stays unregistered.
 	 */
 	ranking?: () => ProductHandoffService;
+	/**
+	 * Service-token registry backing the payment firewall (Module 8). When
+	 * provided, `/v1/agent/checkout` enforces `checkout:execute` scope and the
+	 * per-token lifetime spend cap before settlement (Audit H2).
+	 */
+	serviceTokens?: ServiceTokenStore;
 }>;
 
 export type AppIntegrations = Readonly<{
@@ -114,6 +122,13 @@ function buildAgentRoutes(
 			? {}
 			: { catalog: new CatalogSearchService(agent.catalogEngine) }),
 		...(agent.ranking === undefined ? {} : { ranking: agent.ranking }),
+		...(agent.serviceTokens === undefined
+			? {}
+			: {
+					firewall: new PaymentAgentService({
+						tokens: agent.serviceTokens,
+					}),
+				}),
 	};
 }
 

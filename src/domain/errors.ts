@@ -44,6 +44,16 @@ export class InsufficientScopeError extends AppError {
 	}
 }
 
+export class SpendCapExceededError extends AppError {
+	constructor(
+		readonly maxSpendAtomic: number,
+		readonly requestedAtomic: number,
+	) {
+		super(errorCodes.SPEND_CAP_EXCEEDED);
+		this.name = "SpendCapExceededError";
+	}
+}
+
 export class AIServiceUnavailableError extends AppError {
 	constructor(_message = "AI Service unavailable") {
 		super(errorCodes.AI_SERVICE_UNAVAILABLE);
