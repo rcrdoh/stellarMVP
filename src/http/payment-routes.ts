@@ -9,6 +9,12 @@ import {
 	paymentIntentIdSchema,
 	submitPaymentTransactionRequestSchema,
 } from "../domain/payments.js";
+import { toPaymentReceipt } from "../domain/reconciliation.js";
+import {
+	reconcileBatchRequestSchema,
+	reconcilePaymentRequestSchema,
+} from "../schemas/payment-confirm.schema.js";
+import type { SettlementReconciliationService } from "../services/payment/settlement-reconciliation-service.js";
 import type { PaymentIntentService } from "../services/payment-intent-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
 import {
@@ -52,6 +58,15 @@ function runtimeFor(
 		service: runtime.service,
 		principalId: principalFromHeader(request),
 	};
+}
+
+function reconciliationFor(
+	runtime: PaymentRuntime | undefined,
+): SettlementReconciliationService {
+	if (runtime?.reconciliation === undefined) {
+		throw new AppError(errorCodes.SERVICE_UNAVAILABLE);
+	}
+	return runtime.reconciliation;
 }
 
 export function registerPaymentRoutes(
@@ -103,4 +118,37 @@ export function registerPaymentRoutes(
 			return reply.code(pending ? 202 : 200).send(publicIntent(intent));
 		},
 	);
+
+	/**
+	 * Confirms a single indeterminate intent against Horizon and returns a
+	 * receipt. Ownership is enforced through `getIntent`, so a caller can only
+	 * reconcile its own intent (Audit H1).
+	 */
+	app.post(
+		"/v1/payment-intents/:intentId/reconcile",
+		async (request, reply) => {
+			const { service, principalId } = runtimeFor(request, runtimeEnv, runtime);
+			const reconciliation = reconciliationFor(runtime);
+			const params = request.params as { intentId: string };
+			const intentId = paymentIntentIdSchema.parse(params.intentId);
+			reconcilePaymentRequestSchema.parse(request.body ?? {});
+			// Ownership check first: throws PAYMENT_INTENT_NOT_FOUND for others.
+			await service.getIntent(intentId, principalId);
+			await reconciliation.reconcileIntent(intentId);
+			const refreshed = await service.getIntent(intentId, principalId);
+			return reply.code(200).send(toPaymentReceipt(refreshed));
+		},
+	);
+
+	/**
+	 * Operator-triggered batch sweep over indeterminate intents. Bounded by
+	 * `limit` so the route cannot drive an unbounded Horizon fan-out.
+	 */
+	app.post("/v1/payment-intents/reconcile", async (request, reply) => {
+		runtimeFor(request, runtimeEnv, runtime);
+		const reconciliation = reconciliationFor(runtime);
+		const input = reconcileBatchRequestSchema.parse(request.body ?? {});
+		const report = await reconciliation.reconcileBatch(input.limit);
+		return reply.code(200).send(report);
+	});
 }

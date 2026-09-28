@@ -1,5 +1,6 @@
 import { Networks } from "@stellar/stellar-sdk";
 import type { Env } from "../config/env.js";
+import { SettlementReconciliationService } from "../services/payment/settlement-reconciliation-service.js";
 import {
 	type PaymentIntentRuntime,
 	PaymentIntentService,
@@ -37,6 +38,10 @@ export async function createPaymentRuntime(
 	} satisfies PaymentIntentRuntime);
 	return {
 		service,
+		reconciliation: new SettlementReconciliationService({
+			persistence: repository,
+			stellar: gateway,
+		}),
 		isReady: () => repository.isReady(),
 		close: () => pool.end(),
 	};

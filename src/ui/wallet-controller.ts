@@ -6,9 +6,13 @@ import { InMemoryWalletSessionStore } from "../integrations/wallets/in-memory-wa
 import { LocalStorageWalletSessionStore } from "../integrations/wallets/local-storage-wallet-session-store.js";
 import { StellarWalletKitConnector } from "../integrations/wallets/stellar-wallets-kit-connector.js";
 import { browserWalletKitLoader } from "../integrations/wallets/stellar-wallets-kit-loader.js";
+import type { TransactionSubmitter } from "../services/wallets/ports/transaction-submitter.js";
 import type { WalletConnector } from "../services/wallets/ports/wallet-connector.js";
 import type { WalletSessionStore } from "../services/wallets/ports/wallet-session-store.js";
-import { WalletSessionService } from "../services/wallets/wallet-session-service.js";
+import {
+	type SubmittedWalletTransaction,
+	WalletSessionService,
+} from "../services/wallets/wallet-session-service.js";
 
 export const WALLET_CHANGED_EVENT = "wallet-changed";
 export const WALLET_CONNECTING_EVENT = "wallet-connecting";
@@ -21,6 +25,8 @@ export interface WalletControllerOptions {
 	readonly connector?: WalletConnector;
 	/** Test seam: overrides `localStorage` persistence. */
 	readonly store?: WalletSessionStore;
+	/** Broadcaster used by `signAndSubmit`; usually Horizon on the client. */
+	readonly submitter?: TransactionSubmitter;
 }
 
 /**
@@ -54,6 +60,7 @@ export class WalletController extends EventTarget {
 			store,
 			() => new Date(),
 			network,
+			options.submitter,
 		);
 	}
 
@@ -110,6 +117,17 @@ export class WalletController extends EventTarget {
 		this.#session = null;
 		this.#error = null;
 		this.#dispatch(WALLET_CHANGED_EVENT, null);
+	}
+
+	/** Signs `xdr` with the connected wallet and broadcasts it. */
+	async signAndSubmit(xdr: string): Promise<SubmittedWalletTransaction | null> {
+		this.#error = null;
+		try {
+			return await this.#service.signAndSubmit({ xdr });
+		} catch (error) {
+			this.#setError(error);
+			return null;
+		}
 	}
 
 	#setError(error: unknown): void {

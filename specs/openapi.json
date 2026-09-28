@@ -1090,6 +1090,140 @@
 					}
 				]
 			}
+		},
+		"/v1/payment-intents/{intentId}/reconcile": {
+			"post": {
+				"operationId": "reconcilePaymentIntent",
+				"tags": ["payments"],
+				"summary": "Re-check an indeterminate payment intent against Horizon",
+				"parameters": [
+					{
+						"name": "intentId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						}
+					}
+				],
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReconcilePaymentRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Settlement receipt for the intent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaymentReceipt"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"503": {
+						"$ref": "#/components/responses/ProblemResponse"
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
+		},
+		"/v1/payment-intents/reconcile": {
+			"post": {
+				"operationId": "reconcilePaymentIntents",
+				"tags": ["payments"],
+				"summary": "Run a bounded batch reconciliation sweep",
+				"parameters": [
+					{
+						"name": "x-principal-id",
+						"in": "header",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						}
+					}
+				],
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReconcileBatchRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Reconciliation run report",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReconciliationRun"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/ProblemResponse"
+					},
+					"503": {
+						"$ref": "#/components/responses/ProblemResponse"
+					}
+				},
+				"security": [
+					{
+						"serviceToken": []
+					}
+				]
+			}
 		}
 	},
 	"components": {
@@ -2266,6 +2400,175 @@
 						"minLength": 1
 					}
 				}
+			},
+			"ReconcilePaymentRequest": {
+				"type": "object",
+				"description": "Optional body for a single-intent reconciliation. When transactionHash is supplied it overrides the hash stored on the intent.",
+				"properties": {
+					"transactionHash": {
+						"type": "string",
+						"pattern": "^[a-f0-9]{64}$",
+						"description": "Stellar transaction hash observed out-of-band."
+					}
+				},
+				"additionalProperties": false
+			},
+			"ReconcileBatchRequest": {
+				"type": "object",
+				"description": "Bounds an operator-triggered batch reconciliation sweep.",
+				"properties": {
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 100,
+						"default": 25
+					}
+				},
+				"additionalProperties": false
+			},
+			"PaymentReceipt": {
+				"type": "object",
+				"required": [
+					"intentId",
+					"orderId",
+					"status",
+					"transactionHash",
+					"ledger",
+					"amountAtomic",
+					"assetCode",
+					"payerAddress",
+					"networkPassphrase",
+					"updatedAt",
+					"stellarExpertUrl"
+				],
+				"properties": {
+					"intentId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"orderId": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 128
+					},
+					"status": {
+						"enum": ["pending_confirmation", "submitted", "paid", "failed"]
+					},
+					"transactionHash": {
+						"type": "string",
+						"pattern": "^[a-f0-9]{64}$"
+					},
+					"ledger": {
+						"type": ["integer", "null"],
+						"minimum": 1
+					},
+					"amountAtomic": {
+						"type": "string",
+						"pattern": "^[1-9][0-9]*$"
+					},
+					"assetCode": {
+						"type": "string",
+						"minLength": 1
+					},
+					"payerAddress": {
+						"type": "string",
+						"pattern": "^G[A-Z2-7]{55}$"
+					},
+					"networkPassphrase": {
+						"type": "string",
+						"minLength": 1
+					},
+					"confirmedAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"stellarExpertUrl": {
+						"type": "string",
+						"format": "uri"
+					}
+				},
+				"additionalProperties": false
+			},
+			"ReconciliationRun": {
+				"type": "object",
+				"required": [
+					"scanned",
+					"confirmed",
+					"failed",
+					"unresolved",
+					"outcomes"
+				],
+				"properties": {
+					"scanned": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"confirmed": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"failed": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"unresolved": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"outcomes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ReconciliationOutcome"
+						}
+					}
+				},
+				"additionalProperties": false
+			},
+			"ReconciliationOutcome": {
+				"type": "object",
+				"required": [
+					"intentId",
+					"previousStatus",
+					"status",
+					"resolved",
+					"ledger"
+				],
+				"properties": {
+					"intentId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"previousStatus": {
+						"enum": [
+							"awaiting_signature",
+							"submitting",
+							"submitted",
+							"confirmed",
+							"failed",
+							"expired"
+						]
+					},
+					"status": {
+						"enum": [
+							"awaiting_signature",
+							"submitting",
+							"submitted",
+							"confirmed",
+							"failed",
+							"expired"
+						]
+					},
+					"resolved": {
+						"type": "boolean"
+					},
+					"ledger": {
+						"type": ["integer", "null"],
+						"minimum": 1
+					}
+				},
+				"additionalProperties": false
 			}
 		},
 		"CreatePaymentIntentRequest": {

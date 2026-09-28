@@ -14,11 +14,27 @@ import {
 	signedTransactionSchema,
 	walletSessionSchema,
 } from "../../domain/wallets/contracts.js";
+import type { TransactionSubmitter } from "./ports/transaction-submitter.js";
 import type { WalletConnector } from "./ports/wallet-connector.js";
 import type { WalletSessionStore } from "./ports/wallet-session-store.js";
 
 /** Clock port kept injectable so `connectedAt` stays deterministic in tests. */
 export type Clock = () => Date;
+
+export interface WalletSessionServiceOptions {
+	readonly connector: WalletConnector;
+	readonly store: WalletSessionStore;
+	/** Optional broadcaster; when absent `signAndSubmit` stays unconfigured. */
+	readonly submitter?: TransactionSubmitter;
+	readonly clock?: Clock;
+	readonly network: WalletNetwork;
+}
+
+/** Outcome of a local sign-then-broadcast round trip. */
+export type SubmittedWalletTransaction = Readonly<{
+	signedTxXdr: string;
+	transactionHash: string;
+}>;
 
 /**
  * Orchestrates the wallet lifecycle over the injected `WalletConnector` and
@@ -27,13 +43,22 @@ export type Clock = () => Date;
  */
 export class WalletSessionService {
 	#session: WalletSession | null = null;
+	#submitter: TransactionSubmitter | undefined;
 
 	constructor(
 		private readonly connector: WalletConnector,
 		private readonly store: WalletSessionStore,
 		private readonly clock: Clock = () => new Date(),
 		private readonly network: WalletNetwork,
-	) {}
+		submitter?: TransactionSubmitter,
+	) {
+		this.#submitter = submitter;
+	}
+
+	/** Registers the broadcaster used by {@link signAndSubmit}. */
+	setSubmitter(submitter: TransactionSubmitter | undefined): void {
+		this.#submitter = submitter;
+	}
 
 	/** Currently active session, or `null` when no wallet is connected. */
 	get current(): WalletSession | null {
@@ -115,6 +140,28 @@ export class WalletSessionService {
 			}),
 		);
 		return signedTransactionSchema.parse(result);
+	}
+
+	/**
+	 * Signs {@link request} with the connected wallet and broadcasts the signed
+	 * envelope through the injected {@link TransactionSubmitter}. Signing stays
+	 * entirely inside the provider; only the signed XDR is forwarded, so the
+	 * application never sees a secret key.
+	 *
+	 * A missing broadcaster or session fails fast with the wallet taxonomy
+	 * instead of silently returning an unsigned transaction.
+	 */
+	async signAndSubmit(
+		request: Omit<SignTransactionRequest, "network" | "address">,
+	): Promise<SubmittedWalletTransaction> {
+		if (this.#submitter === undefined) {
+			throw new WalletProviderUnavailableError();
+		}
+		const signed = await this.signTransaction(request);
+		const { transactionHash } = await this.#submitter.submit(
+			signed.signedTxXdr,
+		);
+		return { signedTxXdr: signed.signedTxXdr, transactionHash };
 	}
 
 	/**

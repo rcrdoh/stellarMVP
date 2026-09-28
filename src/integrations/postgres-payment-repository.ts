@@ -6,6 +6,7 @@ import {
 	type PaymentIntentStatus,
 	paymentIntentSchema,
 } from "../domain/payments.js";
+import type { PaymentReconciliationRepository } from "../services/payment/ports/payment-reconciliation-repository.js";
 import type {
 	PaymentIntentRepository,
 	PaymentQuoteRepository,
@@ -84,7 +85,11 @@ export interface PaymentQuoteWriter {
 }
 
 export class PostgresPaymentRepository
-	implements PaymentQuoteRepository, PaymentIntentRepository, PaymentQuoteWriter
+	implements
+		PaymentQuoteRepository,
+		PaymentIntentRepository,
+		PaymentQuoteWriter,
+		PaymentReconciliationRepository
 {
 	constructor(private readonly pool: PoolLike) {}
 
@@ -181,6 +186,26 @@ export class PostgresPaymentRepository
 			[intentId],
 		);
 		return result.rows[0] ? paymentIntentFromRow(result.rows[0]) : null;
+	}
+
+	/**
+	 * Selects indeterminate intents (submission attempted, ledger outcome not
+	 * yet observed) that have not been touched since `olderThan`, oldest first.
+	 * The age guard keeps the reconciliation worker from racing an in-flight
+	 * submission; the `LIMIT` bounds each sweep.
+	 */
+	async findIndeterminate(
+		olderThan: string,
+		limit: number,
+	): Promise<PaymentIntent[]> {
+		const result = await this.pool.query(
+			`SELECT * FROM payment_intents
+			 WHERE status IN ('submitting', 'submitted') AND updated_at <= $1
+			 ORDER BY updated_at ASC
+			 LIMIT $2`,
+			[olderThan, limit],
+		);
+		return result.rows.map((row) => paymentIntentFromRow(row));
 	}
 
 	async insertIntent(intent: PaymentIntent): Promise<void> {
