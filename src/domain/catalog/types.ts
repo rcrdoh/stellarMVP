@@ -14,6 +14,8 @@ export const MerchantProductSchema = z.object({
 	currency: z.string().default("USD"),
 	category: z.string(),
 	inStock: z.boolean().default(true),
+	/** Canonical listing URL when the merchant feed provides one. */
+	url: z.string().url().optional(),
 	metadata: z.record(z.string(), z.unknown()).default({}),
 	score: z.number().min(0).max(1).optional(),
 });

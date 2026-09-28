@@ -20,6 +20,7 @@ import { AgentSearchService } from "../services/agent-search.js";
 import { CatalogSearchService } from "../services/agents/catalog-search.js";
 import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
 import type { CatalogSearchEngine } from "../services/agents/ports/catalog-search-engine.js";
+import type { ProductHandoffService } from "../services/agents/product-handoff.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
@@ -58,6 +59,12 @@ export type AgentIntegrations = Readonly<{
 	 * unregistered, keeping the default agent surface unchanged.
 	 */
 	catalogEngine?: CatalogSearchEngine;
+	/**
+	 * Lazy accessor for the product ranking handoff use case (Module 7). When
+	 * provided the `/v1/agent/products/rank` route is registered; when absent it
+	 * stays unregistered.
+	 */
+	ranking?: () => ProductHandoffService;
 }>;
 
 export type AppIntegrations = Readonly<{
@@ -106,6 +113,7 @@ function buildAgentRoutes(
 		...(agent.catalogEngine === undefined
 			? {}
 			: { catalog: new CatalogSearchService(agent.catalogEngine) }),
+		...(agent.ranking === undefined ? {} : { ranking: agent.ranking }),
 	};
 }
 

@@ -12,12 +12,14 @@ import { AppError } from "../domain/errors.js";
 import { createItemSchema } from "../domain/items.js";
 import { CatalogSearchRequestSchema } from "../schemas/catalog.schema.js";
 import { AgentChatRequestSchema } from "../schemas/intent.schema.js";
+import { ProductRankingRequestSchema } from "../schemas/ranking.schema.js";
 import type { AgentAuthService } from "../services/agent-auth.js";
 import { AGENT_SCOPES } from "../services/agent-auth.js";
 import type { AgentCheckoutService } from "../services/agent-checkout.js";
 import type { AgentSearchService } from "../services/agent-search.js";
 import type { CatalogSearchService } from "../services/agents/catalog-search.js";
 import type { DiscoveryAgentService } from "../services/agents/discovery-agent.js";
+import type { ProductHandoffService } from "../services/agents/product-handoff.js";
 import type { AgentShoppingConversationService } from "../services/agents/shopping-conversation.js";
 import type { ItemService } from "../services/item-service.js";
 import type { PaymentRuntime } from "../services/payment-runtime.js";
@@ -53,6 +55,12 @@ export type AgentRoutes = Readonly<{
 	 * stays unregistered otherwise.
 	 */
 	catalog?: CatalogSearchService;
+	/**
+	 * Optional product ranking handoff (Module 7). Present only when the runtime
+	 * can compose the ranking engine; the `/v1/agent/products/rank` route stays
+	 * unregistered otherwise.
+	 */
+	ranking?: () => ProductHandoffService;
 }>;
 
 type IntegrationStatus = "disabled" | "ready" | "degraded";
@@ -279,6 +287,37 @@ export function registerRoutes(
 				await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.SEARCH);
 				const body = CatalogSearchRequestSchema.parse(request.body);
 				return agentRoutes.catalog?.search(body);
+			},
+		);
+	}
+
+	if (agentRoutes.ranking !== undefined) {
+		const resolveRanking = agentRoutes.ranking;
+		app.post(
+			"/v1/agent/products/rank",
+			{
+				schema: {
+					body: ProductRankingRequestSchema,
+				},
+			},
+			async (request, reply) => {
+				const token = requireAgentToken(request);
+				await agentRoutes.auth.verifyAgentScope(token, AGENT_SCOPES.SEARCH);
+				const body = ProductRankingRequestSchema.parse(request.body);
+				const ranking = resolveRanking();
+				const result = await ranking.rankAndPersist({
+					sessionId: body.sessionId,
+					query: body.query,
+					topK: body.topK,
+					products: body.products,
+				});
+				return reply.code(200).send({
+					sessionId: result.sessionId,
+					normalizedCurrency: result.normalizedCurrency,
+					results: result.results,
+					count: result.results.length,
+					persisted: result.persisted,
+				});
 			},
 		);
 	}

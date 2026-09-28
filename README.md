@@ -124,6 +124,8 @@ Disponibles unicamente cuando las integraciones de agente estan habilitadas
 | Metodo | Ruta | Auth | Descripcion |
 | --- | --- | --- | --- |
 | POST | `/v1/agent/search` | Agent Token (scope search) | Busqueda del agente |
+| POST | `/v1/agent/catalog/search` | Agent Token (scope search) | Busqueda vectorial en el catalogo de comerciantes |
+| POST | `/v1/agent/products/rank` | Agent Token (scope search) | Normaliza, deduplica y rankea ofertas, con handoff de persistencia |
 | POST | `/v1/agent/checkout` | Agent Token (scope checkout) + `X-402-Payment-Token` | Inicia checkout ACP x402 |
 
 ### Stellar Payment Intents
