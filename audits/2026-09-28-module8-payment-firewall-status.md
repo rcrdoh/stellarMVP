@@ -1,13 +1,13 @@
 # Audit: Módulo 8 — Payment Agent, Service Token Spend Scopes & x402 Checkout Firewall
 
 - **Repository**: `stellarMVP` (ChapaTuOferta)
-- **Branch**: `agent` (`coding_agent/agentic-commerce` como rama objetivo)
-- **HEAD**: `9552b58` — *[AGENT:product-ranking-engine] Add Module 7 repository state audit*
-- **Base de trabajo**: `ab3c2d3` (Módulo 7) + cambios locales del Módulo 8 sin commitear
+- **Branch**: `feature/task-1790633467-payment-checkout-firewall`
+- **HEAD**: `553de44` — *[AGENT:payment-checkout-firewall] Implement Module 8 payment agent, service token spend scopes and x402 checkout firewall*
+- **Base de trabajo**: `9552b58` (Módulo 7)
 - **Runtime**: Bun `1.4.2`, TypeScript ESM estricto, Biome
 - **Audit date**: 2026-09-28
-- **Working tree**: con cambios locales del Módulo 8 pendientes de commit
-  (`git status --short`: 4 archivos modificados, 6 nuevos)
+- **Working tree**: limpio; cambios del Módulo 8 commiteados en `553de44`
+  (14 archivos, +993 líneas)
 - **Hallazgos de auditoría abordados**: **H2 (High)** — ausencia de un firewall de
   gasto y de scopes de servicio en la ruta de checkout agéntico; un token podía
   drenar el saldo sin límite de por vida ni verificación de alcance. Se añade la
@@ -145,9 +145,11 @@ desconocido, y `201` en el camino feliz con registro del pedido.
 - **`destination` del challenge es `"unknown"`** para tokens desconocidos: no se
   filtra el destino del comercio, lo que es correcto para un pagador no
   autenticado pero limita la auto-negociación completa.
-- **Los cambios del Módulo 8 permanecen locales** (sin commitear) en la rama
-  `agent`; el commit/auditoría del Módulo 7 (`9552b58`) es el último punto de
-  control.
+- **Los cambios del Módulo 8 están commiteados** en la rama
+  `feature/task-1790633467-payment-checkout-firewall` (`553de44`), partiendo del
+  punto de control del Módulo 7 (`9552b58`). Falló la convención `agent/task-*` de
+  `AGENTS.md` porque ya existe una rama `agent`; se usó el patrón
+  `feature/task-*` establecido en módulos previos.
 
 ## 7. Deuda y seguimiento
 
@@ -192,4 +194,5 @@ scope `checkout:execute` y tope de por vida, y negocia credenciales mediante
 `402` + `X-402-Challenge` para agentes autónomos. Queda como seguimiento el
 adaptador de tokens productivo (Redis/SQL), la parametrización del challenge, la
 cobertura de idempotencia y la actualización del `README.md`. Los cambios del
-Módulo 8 permanecen locales en la rama `agent`, pendientes de commit.
+Módulo 8 quedan commiteados en `feature/task-1790633467-payment-checkout-firewall`
+(`553de44`), sin push a remoto.
