@@ -13,3 +13,4 @@ Informes de auditoría del repositorio y del estado del eSDD.
 | 2026-09-28 | [2026-09-28-module3-wallet-status.md](2026-09-28-module3-wallet-status.md) | Módulo 3: integración de wallet Web3 (puerto libre de DOM, DoD checklist) |
 | 2026-09-28 | [2026-09-28-module4-ui-status.md](2026-09-28-module4-ui-status.md) | Módulo 4: UI shell, carrito y layout de flujo (sin React, DoD checklist) |
 | 2026-09-28 | [2026-09-28-module5-resilience-status.md](2026-09-28-module5-resilience-status.md) | Módulo 5: resiliencia, rate limiting y manejo de errores |
+| 2026-09-28 | [2026-09-28-module6-vector-catalog-status.md](2026-09-28-module6-vector-catalog-status.md) | Módulo 6: motor de recuperación vectorial y extracción de catálogo (Audit L2) |
