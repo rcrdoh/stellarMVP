@@ -1,4 +1,5 @@
 import type {
+	SignedTransaction,
 	WalletNetwork,
 	WalletSession,
 } from "../domain/wallets/contracts.js";
@@ -117,6 +118,21 @@ export class WalletController extends EventTarget {
 		this.#session = null;
 		this.#error = null;
 		this.#dispatch(WALLET_CHANGED_EVENT, null);
+	}
+
+	/**
+	 * Signs `xdr` with the connected wallet, without broadcasting. Used by flows
+	 * (like the x402 submission) that persist the signed envelope through a
+	 * backend endpoint instead of Horizon.
+	 */
+	async sign(xdr: string): Promise<SignedTransaction | null> {
+		this.#error = null;
+		try {
+			return await this.#service.signTransaction({ xdr });
+		} catch (error) {
+			this.#setError(error);
+			return null;
+		}
 	}
 
 	/** Signs `xdr` with the connected wallet and broadcasts it. */

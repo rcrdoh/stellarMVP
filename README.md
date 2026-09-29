@@ -26,6 +26,7 @@ src/
   ui/           Capa de presentacion framework-agnostic (sin React)
   ui/index.html Shell HTML del cliente (Tailwind via CDN)
   ui/browser/   Composition root y clientes para ejecutar la UI en el navegador
+  react-app/    Frontend React 19 + Tailwind v4 (ACP x402, sin Vite)
   index.ts      Entrada del proceso
 config/         TOML versionable con perfiles dev, staging y prod
 docs/           SDD, errores, SOLID, Docker y ADR
@@ -34,7 +35,8 @@ supabase/       Migraciones SQL (esquema de comercio y RLS por agente)
 scripts/        Automatizacion SDD local
 tests/          Pruebas de contrato y servicios
 AGENTS.md       Reglas estrictas para agentes de codigo
-Dockerfile      Imagen de produccion
+Dockerfile      Imagen de produccion de la API
+Dockerfile.web  Imagen de produccion del frontend React (Render)
 docker-compose.yml Orquestacion local de contenedor
 ```
 
@@ -44,6 +46,8 @@ docker-compose.yml Orquestacion local de contenedor
 bun install
 bun run dev
 bun run ui:dev
+bun run react:dev
+bun run start:web
 bun run build
 bun run spec:check
 bun test
@@ -51,7 +55,7 @@ bun run check
 bun run check-types
 ```
 
-`bun run build` emite a `dist/` via `tsconfig.build.json`. El runtime local sigue siendo Bun sobre `src/` (`dev` / `start`). `bun run ui:dev` sirve la UI del navegador (ver [Frontend](#frontend-shell-en-el-navegador)).
+`bun run build` emite a `dist/` via `tsconfig.build.json`. El runtime local sigue siendo Bun sobre `src/` (`dev` / `start`). `bun run ui:dev` sirve la UI del navegador legacy (ver [Frontend shell en el navegador](#frontend-shell-en-el-navegador)); `bun run react:dev` sirve el frontend React ACP x402 (ver [Frontend React ACP x402](#frontend-react-acp-x402)); `bun run start:web` sirve ese mismo frontend en modo produccion (`NODE_ENV=production`, bundle minificado, bind a `HOST`/`PORT`) para el despliegue en [Render](#render).
 
 ## Ejecutar en localhost
 
@@ -219,6 +223,63 @@ backend, LLM, Qdrant ni variables de entorno. Para usar el backend real, deja
 `bun run dev` corriendo en `:3000` y apunta `UI_API_TARGET` a esa URL; para
 inyectar otro cliente de busqueda, pasa `searchClient` a `mountApp`.
 
+### Frontend React ACP x402
+
+El frontend nuevo vive en `src/react-app` (React 19 + Tailwind v4, sin Vite ni
+bundler externo) y se sirve con un dev server propio sobre `Bun.build` +
+`bun-plugin-tailwind`. Ademas del SPA sirve `/main.js` y `/styles.css`, y hace
+proxy de `/v1/*` hacia el backend para que pagina y API compartan origen.
+
+```bash
+bun install
+bun run react:dev
+```
+
+Abre `http://127.0.0.1:5173`. El comando imprime la URL y el backend destino:
+
+```txt
+React ACP frontend on http://127.0.0.1:5173
+Proxying /v1/* -> http://127.0.0.1:3000
+```
+
+Variables de entorno del dev server:
+
+| Variable | Valor por defecto | Descripcion |
+| --- | --- | --- |
+| `REACT_UI_PORT` | `5173` | Puerto del dev server |
+| `REACT_UI_HOST` | `127.0.0.1` | Interfaz de escucha |
+| `UI_API_TARGET` | `http://127.0.0.1:3000` | Backend destino del proxy `/v1/*` |
+| `REACT_MOCK_MODE` | `1` (mock) | Con `0` usa los clientes HTTP reales |
+| `REACT_AGENT_TOKEN` | vacio | Token de agente para el modo real |
+| `REACT_SERVICE_TOKEN` | vacio | Service token para el modo real |
+| `REACT_PRINCIPAL_ID` | vacio | `X-Principal-Id` para el modo real |
+
+Por defecto el frontend arranca en **modo mock** (blocker B1 en
+`docs/react-app-recon.md`: el backend aun no expone un endpoint de quote), asi
+que renderiza catalogo, carrito y checkout con datos simulados y funciona sin
+backend. Para ejercitar el contrato real, arranca el backend y desactiva el modo
+mock:
+
+```bash
+bun run dev                       # backend en 127.0.0.1:3000
+REACT_MOCK_MODE=0 bun run react:dev
+```
+
+Los valores `REACT_*` se sustituyen en el bundle en **build time**, por lo que un
+cambio exige reiniciar `react:dev`. En modo real las llamadas a `/v1/*` pasan por
+el proxy y heredan los requisitos de auth del backend (service token, agente,
+pagos).
+
+Verificacion rapida:
+
+```bash
+curl -s -o /dev/null -w "index:%{http_code}\n" http://127.0.0.1:5173/
+curl -s -o /dev/null -w "js:%{http_code}\n"    http://127.0.0.1:5173/main.js
+curl -s -o /dev/null -w "css:%{http_code}\n"   http://127.0.0.1:5173/styles.css
+```
+
+Cierra el dev server con `Ctrl+C`; no dejes el proceso corriendo al terminar.
+
 ### Antes de abrir cambios
 
 ```bash
@@ -322,18 +383,78 @@ seccion [Ejecutar en localhost](#ejecutar-en-localhost).
 
 Manual: `docs/docker.md`.
 
+API (raiz `Dockerfile`):
+
 ```bash
 docker compose up --build -d
 ```
 
+Frontend React (raiz `Dockerfile.web`, ver [Render](#render)):
+
+```bash
+docker build -f Dockerfile.web -t stellarmvp-web .
+docker run --rm -p 8010:3000 -e UI_API_TARGET=http://127.0.0.1:3000 stellarmvp-web
+```
+
 ## Render
 
-El despliegue activo usa Render con el `Dockerfile` de la raíz. La imagen instala
-dependencias de producción con Bun 1.4 y arranca mediante `bun run start`. El
-contenedor escucha en `0.0.0.0:3000`; si cambias el puerto en el Dockerfile,
-sincroniza `PORT`, `EXPOSE` y la configuración del servicio en Render.
+El despliegue activo usa Render. La API y el frontend React ACP x402 se
+despliegan como **dos servicios web Docker** del mismo repositorio; el frontend
+hace de proxy de `/v1/*` hacia la API, de modo que el navegador trabaja con un
+solo origen.
+
+### Servicio 1 — API (obligatorio)
+
+- Tipo: **Web Service** → **Docker**.
+- `Dockerfile Path`: `./Dockerfile`.
+- El contenedor escucha en `0.0.0.0:3000` (variables `HOST`/`PORT` del
+  Dockerfile). Render inyecta `PORT`; si lo cambias, sincroniza `PORT`, `EXPOSE`
+  y el puerto del servicio.
+- Health check path: `/v1/health/live`.
+- Variables: las de la seccion
+  [Ejecutar en localhost](#ejecutar-en-localhost) que necesites. Sin variables
+  externas el servicio arranca con las capas opcionales deshabilitadas.
+- Autoriza el acceso a la base de datos y a Redis (si aplica) desde la region de
+  Render; en Postgres gestionado usa la `DATABASE_URL` con SSL.
+
+### Servicio 2 — Frontend React ACP x402
+
+- Tipo: **Web Service** → **Docker**.
+- `Dockerfile Path`: `./Dockerfile.web`.
+- El contenedor sirve el SPA (`/`, `/main.js`, `/styles.css`) y hace proxy de
+  `/v1/*` al backend. Escucha en `0.0.0.0:$PORT` (Render lo inyecta).
+- Variables:
+
+| Variable | Valor | Descripcion |
+| --- | --- | --- |
+| `UI_API_TARGET` | URL publica de la API | Backend destino del proxy `/v1/*` |
+| `REACT_MOCK_MODE` | `0` | Usa los clientes HTTP reales |
+| `REACT_AGENT_TOKEN` | token de agente (si aplica) | Auth para `/v1/agent/*` |
+| `REACT_SERVICE_TOKEN` | service token (si aplica) | Auth para `/v1/items` y pagos |
+| `REACT_PRINCIPAL_ID` | id del principal (si aplica) | Cabecera `X-Principal-Id` |
+
+Sin `UI_API_TARGET` el frontend cae a `http://127.0.0.1:3000`, que no existe en
+Render: define siempre la URL publica de la API. Los `REACT_*` se sustituyen en
+el bundle en **build time**, por lo que cambiarlos exige redeploy del servicio de
+frontend.
+
+Con `REACT_MOCK_MODE` sin definir (o distinto de `0`) el frontend arranca en modo
+mock (blocker B1 en `docs/react-app-recon.md`) y funciona sin API.
+
+### Verificacion
+
+```bash
+curl -fsS https://<api>.onrender.com/v1/health/live
+curl -fsS -o /dev/null -w "index:%{http_code}\n" https://<web>.onrender.com/
+curl -fsS -o /dev/null -w "js:%{http_code}\n"    https://<web>.onrender.com/main.js
+curl -fsS -o /dev/null -w "css:%{http_code}\n"   https://<web>.onrender.com/styles.css
+```
+
+### Notas
 
 No hay `render.yaml`: la rama, variables, health check y ajustes del Dashboard
 viven en Render. No agregues un Blueprint parcial al servicio existente sin
-capturar primero todos sus valores actuales. Consulta
-`docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuración.
+capturar primero todos sus valores actuales. `vercel.json` se elimino junto con
+la configuracion de Vercel; el guardado `VERCEL` en `src/index.ts` se conserva
+solo por compatibilidad anterior, no como despliegue activo. Consulta
+`docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuracion.

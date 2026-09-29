@@ -1,0 +1,50 @@
+/* Canonical design tokens for the React ACP x402 frontend.
+ * Prose hexes from DESIGN.md are authoritative (SDD decision D4). The
+ * Material-style front-matter tokens are exposed as `--md-*` extras only and
+ * MUST NOT override these. */
+:root {
+	/* Layers */
+	--canvas: #030712;
+	--panel: #111827;
+	--elevated: #1f2937;
+	--stroke: #374151;
+	--navy: #0b1120;
+
+	/* Text */
+	--text: #f3f4f6;
+	--muted: #9ca3af;
+
+	/* Primary (emerald) */
+	--emerald: #10b981;
+	--emerald-hover: #059669;
+	--emerald-container: #022c22;
+	--emerald-stroke: #065f46;
+	--emerald-text: #6ee7b7;
+	/* SDD D5 / §17 Q1: white per spec, routed through a var for a one-line swap. */
+	--btn-primary-fg: #ffffff;
+
+	/* Protocol telemetry */
+	--cyan: #00fbff;
+	--cyan-text: #7dd3fc;
+
+	/* Agent operations */
+	--indigo: #6366f1;
+
+	/* Ambient / pending signature */
+	--amber: #f59e0b;
+	--amber-container: #451a03;
+
+	/* Failures */
+	--red: #ef4444;
+	--red-container: #450a0a;
+	--red-stroke: #991b1b;
+	--red-text: #fca5a5;
+
+	/* Glows */
+	--glow-emerald: 0 0 12px rgba(16, 185, 129, 0.25);
+	--glow-red: 0 0 10px rgba(239, 68, 68, 0.2);
+
+	/* Extra (non-canonical) tokens from the DESIGN.md front matter. */
+	--md-primary: #4edea3;
+	--md-surface: #0e131f;
+}

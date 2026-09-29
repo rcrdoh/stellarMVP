@@ -1,11 +1,12 @@
 {
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
-		"types": ["bun"],
+		"types": ["bun", "react", "react-dom"],
 		"noEmit": true
 	},
 	"include": [
 		"src/**/*.ts",
+		"src/**/*.tsx",
 		"src/**/*.d.ts",
 		"tests/**/*.ts",
 		"scripts/**/*.ts"

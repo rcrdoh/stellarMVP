@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@theme {
+	--color-canvas: var(--canvas);
+	--color-panel: var(--panel);
+	--color-elevated: var(--elevated);
+	--color-stroke: var(--stroke);
+	--color-navy: var(--navy);
+	--color-ink: var(--text);
+	--color-muted: var(--muted);
+	--color-emerald: var(--emerald);
+	--color-emerald-hover: var(--emerald-hover);
+	--color-emerald-container: var(--emerald-container);
+	--color-emerald-stroke: var(--emerald-stroke);
+	--color-emerald-text: var(--emerald-text);
+	--color-cyan: var(--cyan);
+	--color-cyan-text: var(--cyan-text);
+	--color-indigo: var(--indigo);
+	--color-amber: var(--amber);
+	--color-amber-container: var(--amber-container);
+	--color-red: var(--red);
+	--color-red-container: var(--red-container);
+	--color-red-stroke: var(--red-stroke);
+	--color-red-text: var(--red-text);
+
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body,
+#app {
+	height: 100%;
+}
+
+body {
+	background-color: var(--canvas);
+	color: var(--text);
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		/* biome-ignore lint/complexity/noImportantStyles: override user-agent animations for a11y */
+		animation-duration: 0.001ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: override user-agent animations for a11y */
+		animation-iteration-count: 1 !important;
+		/* biome-ignore lint/complexity/noImportantStyles: override user-agent animations for a11y */
+		transition-duration: 0.001ms !important;
+	}
+}
