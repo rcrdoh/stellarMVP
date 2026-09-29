@@ -1,0 +1,127 @@
+# Render Blueprint for stellarmvp.
+#
+# Two Docker web services from the same repository:
+#   - stellarmvp-api  : Fastify API (`./Dockerfile`, `bun run start`)
+#   - stellarmvp-web  : React ACP x402 SPA + `/v1/*` reverse proxy
+#                       (`./Dockerfile.web`, `bun run start:web`)
+#
+# The browser only talks to the frontend origin; the frontend proxies `/v1/*`
+# to the API, so UI and API share an origin and no CORS is needed.
+#
+# Deploy from the Render Dashboard: New > Blueprint > select this repo, or
+# `render blueprint launch`. Values marked `sync: false` are NOT stored in git;
+# set them in the Dashboard after the first deploy.
+
+services:
+  # --- Service 1: API (Fastify) -------------------------------------------
+  - type: web
+    name: stellarmvp-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /v1/health/live
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: HOST
+        value: 0.0.0.0
+      # Render injects PORT at runtime; the app reads it from the environment.
+      - key: LOG_LEVEL
+        value: info
+      - key: CONFIG_FILE
+        value: config/settings.toml
+
+      # --- Optional integrations (disabled by default) --------------------
+      - key: DATABASE_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: BUCKET_ENABLED
+        value: "false"
+      - key: CACHE_ENABLED
+        value: "false"
+      - key: REDIS_URL
+        sync: false
+
+      # --- Agentic commerce (ACP x402) ------------------------------------
+      # Set to "true" only when every required integration below is provided,
+      # otherwise the API fails to boot while building the runtime.
+      - key: AGENT_COMMERCE_ENABLED
+        value: "false"
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: items
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_EMBEDDINGS_MODEL
+        value: text-embedding-3-small
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: JEV_API_KEY
+        sync: false
+      - key: JEV_BASE_URL
+        value: https://api.typesafe.ai
+      - key: JEV_MODEL
+        value: jev-latest
+
+      # --- Stellar payments -----------------------------------------------
+      # With PAYMENTS_ENABLED=true the schema REQUIRES SERVICE_TOKEN,
+      # DATABASE_URL, STELLAR_NETWORK=testnet, STELLAR_USDC_ISSUER and
+      # STELLAR_HORIZON_URL; a missing value aborts startup with a ZodError.
+      - key: PAYMENTS_ENABLED
+        value: "false"
+      - key: SERVICE_TOKEN
+        generateValue: true
+      - key: STELLAR_NETWORK
+        value: testnet
+      - key: STELLAR_HORIZON_URL
+        value: https://horizon-testnet.stellar.org
+      - key: STELLAR_USDC_ISSUER
+        sync: false
+      - key: STELLAR_SOURCE_SECRET
+        sync: false
+      - key: STELLAR_MAX_FEE_PER_OPERATION_STROOPS
+        value: "100000"
+
+  # --- Service 2: Frontend React ACP x402 (SPA + /v1 proxy) ---------------
+  - type: web
+    name: stellarmvp-web
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile.web
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: prod
+      - key: HOST
+        value: 0.0.0.0
+      # Points the proxy at the API service by name; resolves at deploy time.
+      - key: UI_API_TARGET
+        fromService:
+          type: web
+          name: stellarmvp-api
+          envVarKey: RENDER_EXTERNAL_URL
+      # "0" uses the real HTTP clients; anything else keeps mock mode.
+      - key: REACT_MOCK_MODE
+        value: "0"
+      # Inlined into the bundle at build time: changing these requires a
+      # redeploy of this service.
+      - key: REACT_AGENT_TOKEN
+        sync: false
+      - key: REACT_SERVICE_TOKEN
+        sync: false
+      - key: REACT_PRINCIPAL_ID
+        sync: false

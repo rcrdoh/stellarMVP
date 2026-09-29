@@ -95,3 +95,22 @@ curl -fsS http://127.0.0.1:8010/
 curl -fsS -o /dev/null -w "js:%{http_code}\n"  http://127.0.0.1:8010/main.js
 curl -fsS -o /dev/null -w "css:%{http_code}\n" http://127.0.0.1:8010/styles.css
 ```
+
+## Render Blueprint (`render.yaml`)
+
+`render.yaml` describe los dos servicios Docker del repositorio y se aplica con
+`render blueprint launch` (o Dashboard: New > Blueprint):
+
+| Servicio | Dockerfile | Health check | Rol |
+| --- | --- | --- | --- |
+| `stellarmvp-api` | `./Dockerfile` | `/v1/health/live` | API Fastify |
+| `stellarmvp-web` | `./Dockerfile.web` | `/` | SPA React + proxy `/v1/*` |
+
+El frontend recibe `UI_API_TARGET` desde la API mediante `fromService`
+(`envVarKey: RENDER_EXTERNAL_URL`), de modo que el proxy apunta a la URL publica
+de la API sin copiarla a mano. Las variables de secretos usan `sync: false` y se
+definen en el Dashboard; `SERVICE_TOKEN` se genera con `generateValue: true`.
+
+`PAYMENTS_ENABLED` y `AGENT_COMMERCE_ENABLED` quedan en `false` en el Blueprint.
+Activar cualquiera exige aportar antes todas sus dependencias (Stellar, Qdrant,
+claves de LLM, `DATABASE_URL`) o el arranque falla con `ZodError`.

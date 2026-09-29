@@ -38,6 +38,7 @@ AGENTS.md       Reglas estrictas para agentes de codigo
 Dockerfile      Imagen de produccion de la API
 Dockerfile.web  Imagen de produccion del frontend React (Render)
 docker-compose.yml Orquestacion local de contenedor
+render.yaml     Blueprint de Render (API + frontend)
 ```
 
 ## Comandos
@@ -403,6 +404,24 @@ despliegan como **dos servicios web Docker** del mismo repositorio; el frontend
 hace de proxy de `/v1/*` hacia la API, de modo que el navegador trabaja con un
 solo origen.
 
+Ambos servicios se describen en `render.yaml` (Blueprint), de modo que se
+crean juntos desde el mismo repositorio con las mismas instrucciones:
+
+```bash
+# En el Dashboard: New > Blueprint > selecciona rcrdoh/stellarMVP
+# (o desde la CLI)
+render blueprint launch
+```
+
+El Blueprint crea `stellarmvp-api` y `stellarmvp-web`, y enlaza el proxy del
+frontend a la API con `UI_API_TARGET` = `RENDER_EXTERNAL_URL` de la API
+(`fromService`), por lo que no hay que copiar URLs a mano. Las variables
+marcadas `sync: false` (tokens y claves) no se guardan en git: defínelas en el
+Dashboard tras el primer deploy.
+
+> Nota: si ya existe un servicio creado a mano en el Dashboard, no apliques el
+> Blueprint encima sin capturar antes sus valores actuales.
+
 ### Servicio 1 — API (obligatorio)
 
 - Tipo: **Web Service** → **Docker**.
@@ -452,9 +471,10 @@ curl -fsS -o /dev/null -w "css:%{http_code}\n"   https://<web>.onrender.com/styl
 
 ### Notas
 
-No hay `render.yaml`: la rama, variables, health check y ajustes del Dashboard
-viven en Render. No agregues un Blueprint parcial al servicio existente sin
-capturar primero todos sus valores actuales. `vercel.json` se elimino junto con
-la configuracion de Vercel; el guardado `VERCEL` en `src/index.ts` se conserva
-solo por compatibilidad anterior, no como despliegue activo. Consulta
-`docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuracion.
+La topologia declarativa (dos servicios, Dockerfiles, health checks y
+variables) vive en `render.yaml`. No apliques un Blueprint parcial al servicio
+existente sin capturar primero todos sus valores actuales. `vercel.json` se
+elimino junto con la configuracion de Vercel; el guardado `VERCEL` en
+`src/index.ts` se conserva solo por compatibilidad anterior, no como despliegue
+activo. Consulta `docs/adr/0001-bun-fastify-framework.md` antes de cambiar la
+configuracion.
