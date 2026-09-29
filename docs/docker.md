@@ -4,7 +4,8 @@ Este proyecto es independiente. Todos los comandos se ejecutan desde la carpeta 
 
 Hay dos imagenes:
 
-- `Dockerfile`: la API Fastify (proceso `src/index.ts`).
+- `Dockerfile`: la API Fastify. Compila `src/` a `dist/` con `bun run build`
+  dentro de la imagen y arranca con `bun run start` (`bun run dist/index.js`).
 - `Dockerfile.web`: el frontend React ACP x402 (SPA + proxy `/v1/*`), pensado
   para Render.
 

@@ -11,7 +11,7 @@
 		"format": "biome format --write .",
 		"spec:check": "bun run scripts/validate-openapi.ts",
 		"db:smoke": "bun run scripts/migrate-smoke.ts",
-		"start": "bun src/index.ts",
+		"start": "bun run dist/index.js",
 		"ui:dev": "bun run scripts/serve-ui.ts",
 		"react:dev": "bun run scripts/serve-react-app.ts",
 		"start:web": "bun run scripts/serve-react-app.ts",

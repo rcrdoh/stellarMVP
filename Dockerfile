@@ -3,11 +3,13 @@ FROM oven/bun:1.4.0-slim AS runtime
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile
 
 COPY config ./config
 COPY specs ./specs
 COPY src ./src
+COPY tsconfig.json tsconfig.build.json ./
+RUN bun run build && rm -rf node_modules && bun install --frozen-lockfile --production
 
 ENV APP_ENV=prod \
     HOST=0.0.0.0 \

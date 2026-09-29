@@ -56,7 +56,7 @@ bun run check
 bun run check-types
 ```
 
-`bun run build` emite a `dist/` via `tsconfig.build.json`. El runtime local sigue siendo Bun sobre `src/` (`dev` / `start`). `bun run ui:dev` sirve la UI del navegador legacy (ver [Frontend shell en el navegador](#frontend-shell-en-el-navegador)); `bun run react:dev` sirve el frontend React ACP x402 (ver [Frontend React ACP x402](#frontend-react-acp-x402)); `bun run start:web` sirve ese mismo frontend en modo produccion (`NODE_ENV=production`, bundle minificado, bind a `HOST`/`PORT`) para el despliegue en [Render](#render).
+`bun run build` emite a `dist/` via `tsconfig.build.json`. `bun run dev` recarga en caliente sobre `src/` (Bun `--watch`); `bun run start` ejecuta el build compilado (`bun run dist/index.js`), que es el mismo comando que usa la imagen de produccion. `bun run ui:dev` sirve la UI del navegador legacy (ver [Frontend shell en el navegador](#frontend-shell-en-el-navegador)); `bun run react:dev` sirve el frontend React ACP x402 (ver [Frontend React ACP x402](#frontend-react-acp-x402)); `bun run start:web` sirve ese mismo frontend en modo produccion (`NODE_ENV=production`, bundle minificado, bind a `HOST`/`PORT`) para el despliegue en [Render](#render).
 
 ## Ejecutar en localhost
 
@@ -64,8 +64,8 @@ bun run check-types
 
 La aplicacion arranca **sin configurar ninguna variable de entorno**: todos los
 valores del schema tienen default y las integraciones externas quedan
-deshabilitadas. Verificado con `bun src/index.ts` (live `200`, ready `200`,
-raiz `302`).
+deshabilitadas. Verificado con `bun run start` sobre `dist/` (live `200`, ready
+`200`, raiz `302`); en desarrollo usa `bun run dev` sobre `src/`.
 
 | Variable | Valor por defecto | Descripcion |
 | --- | --- | --- |
