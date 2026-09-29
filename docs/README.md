@@ -24,3 +24,4 @@ Documentacion de arquitectura, decisiones y flujo de trabajo.
 - `errors.md`: reglas practicas para implementar codigos de error.
 - `sdd.md`: flujo Spec Driven Development.
 - `solid.md`: criterios SOLID aplicados a la base.
+- `../DESIGN.md` (raiz): diseno del frontend (`src/ui/`) y su estado actual.

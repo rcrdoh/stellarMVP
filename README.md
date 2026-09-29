@@ -292,6 +292,8 @@ El contrato canonico vive en `specs/openapi.json`. Para cambiar el API:
 - Taxonomia de errores y `application/problem+json`: `docs/errors.md`.
 - ADR aceptadas: `docs/adr/`.
 - Principios SOLID aplicados: `docs/solid.md`.
+- Diseno del frontend y su estado actual: `DESIGN.md`.
+- Auditoria del frontend y flujo UI/UX: `audits/2026-09-29-frontend-ui-ux-audit.md`.
 
 ## Configuracion
 
