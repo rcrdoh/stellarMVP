@@ -24,6 +24,8 @@ src/
   integrations/ Adaptadores reemplazables
   services/     Casos de uso
   ui/           Capa de presentacion framework-agnostic (sin React)
+  ui/index.html Shell HTML del cliente (Tailwind via CDN)
+  ui/browser/   Composition root y clientes para ejecutar la UI en el navegador
   index.ts      Entrada del proceso
 config/         TOML versionable con perfiles dev, staging y prod
 docs/           SDD, errores, SOLID, Docker y ADR
@@ -41,6 +43,7 @@ docker-compose.yml Orquestacion local de contenedor
 ```bash
 bun install
 bun run dev
+bun run ui:dev
 bun run build
 bun run spec:check
 bun test
@@ -48,9 +51,31 @@ bun run check
 bun run check-types
 ```
 
-`bun run build` emite a `dist/` via `tsconfig.build.json`. El runtime local sigue siendo Bun sobre `src/` (`dev` / `start`).
+`bun run build` emite a `dist/` via `tsconfig.build.json`. El runtime local sigue siendo Bun sobre `src/` (`dev` / `start`). `bun run ui:dev` sirve la UI del navegador (ver [Frontend](#frontend-shell-en-el-navegador)).
 
-## Ejecutar desde cero
+## Ejecutar en localhost
+
+### Valores minimos (arranque sin dependencias externas)
+
+La aplicacion arranca **sin configurar ninguna variable de entorno**: todos los
+valores del schema tienen default y las integraciones externas quedan
+deshabilitadas. Verificado con `bun src/index.ts` (live `200`, ready `200`,
+raiz `302`).
+
+| Variable | Valor por defecto | Descripcion |
+| --- | --- | --- |
+| `APP_ENV` | `dev` | Perfil activo (`dev`, `staging`, `prod`) |
+| `HOST` | `127.0.0.1` | Interfaz de escucha local |
+| `PORT` | `3000` | Puerto HTTP |
+| `LOG_LEVEL` | `info` (perfil `dev`: `debug`) | Nivel de logs |
+| `CONFIG_FILE` | `config/settings.toml` | TOML versionable de perfiles |
+| `DATABASE_ENABLED` | `false` | Postgres deshabilitado |
+| `BUCKET_ENABLED` | `false` | Almacenamiento de objetos deshabilitado |
+| `CACHE_ENABLED` | `false` | Redis deshabilitado |
+| `AGENT_COMMERCE_ENABLED` | `false` | Rutas `/v1/agent/*` no registradas |
+| `PAYMENTS_ENABLED` | `false` | Rutas `/v1/payment-intents/*` no registradas |
+
+Pasos:
 
 1. Instala Bun `>=1.4.0`.
 2. Instala dependencias:
@@ -59,20 +84,17 @@ bun run check-types
 bun install
 ```
 
-3. Revisa la configuracion versionable en `config/settings.toml`.
-4. Si necesitas overrides locales, crea `.env` tomando `.env.example` como base.
-   No guardes secretos en TOML ni en git.
-5. Arranca el servicio:
+3. Arranca el servicio (recarga automatica con `--watch`):
 
 ```bash
 bun run dev
 ```
 
-6. Verifica health y spec:
+4. Verifica health y spec:
 
 ```bash
-curl -I http://127.0.0.1:3000/
-curl http://127.0.0.1:3000/v1/health/live
+curl -I http://127.0.0.1:3000/            # 302 -> /docs
+curl http://127.0.0.1:3000/v1/health/live # {"status":"ok",...}
 curl http://127.0.0.1:3000/v1/health/ready
 curl http://127.0.0.1:3000/openapi.json
 curl http://127.0.0.1:3000/docs
@@ -81,7 +103,123 @@ curl http://127.0.0.1:3000/docs
 La ruta raiz `/` redirige a `/docs`, donde se sirve la referencia interactiva
 del API.
 
-7. Antes de abrir cambios, ejecuta:
+5. (Opcional) Levanta el frontend en otra terminal y abre
+   `http://127.0.0.1:3001`:
+
+```bash
+bun run ui:dev
+```
+
+El shell del navegador funciona solo (catalogo demo en memoria) y hace proxy de
+`/v1/*` hacia el backend en `:3000`. Detalles en
+[Frontend](#frontend-shell-en-el-navegador).
+
+### Overrides locales (`.env`)
+
+Copia `.env.example` a `.env` (cargado por Bun; no lo subas a git) y ajusta solo
+lo que necesites. Valores tipicos para desarrollo:
+
+```env
+APP_ENV=dev
+HOST=127.0.0.1
+PORT=3000
+LOG_LEVEL=debug
+SERVICE_TOKEN=local-dev-token
+```
+
+Con `SERVICE_TOKEN` definido, las rutas de `items` exigen el bearer
+(verificacion: sin token `401`, con token `201`):
+
+```bash
+curl -X POST http://127.0.0.1:3000/v1/items \
+  -H "Authorization: Bearer local-dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"demo","metadata":{}}'
+```
+
+### Habilitar agentes (`AGENT_COMMERCE_ENABLED=true`)
+
+Registra las rutas `/v1/agent/*`. Requiere las integraciones que consumen esos
+casos de uso; si faltan, el arranque falla al construir el runtime. Valores
+minimos a definir en `.env`:
+
+```env
+AGENT_COMMERCE_ENABLED=true
+REDIS_URL=redis://127.0.0.1:6379
+DATABASE_URL=postgres://stellar:password@127.0.0.1:5432/stellarmvp
+OPENAI_API_KEY=<clave>
+GROQ_API_KEY=<clave>
+```
+
+### Habilitar pagos (`PAYMENTS_ENABLED=true`)
+
+El schema (`src/config/env.ts`) **exige** estos valores cuando los pagos estan
+activos; si falta alguno, el proceso no arranca y muestra el `ZodError`:
+
+| Variable | Valor requerido | Motivo |
+| --- | --- | --- |
+| `SERVICE_TOKEN` | no vacio | Autenticacion de las rutas de pago |
+| `DATABASE_URL` | no vacio | Persistencia de payment intents |
+| `STELLAR_NETWORK` | `testnet` | Los pagos de wallet solo corren en testnet |
+| `STELLAR_USDC_ISSUER` | cuenta Stellar `G...` (56 chars) | Asset USDC |
+| `STELLAR_HORIZON_URL` | debe empezar por `https://` (default `https://horizon-testnet.stellar.org`) | Endpoint de Horizon |
+
+Ejemplo de `.env` para pagos en local:
+
+```env
+PAYMENTS_ENABLED=true
+SERVICE_TOKEN=local-dev-token
+DATABASE_URL=postgres://stellar:password@127.0.0.1:5432/stellarmvp
+STELLAR_NETWORK=testnet
+STELLAR_USDC_ISSUER=GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+STELLAR_SOURCE_SECRET=<secret opcional, solo si el backend firma>
+```
+
+Puedes levantar un Postgres local con el `docker-compose.yml` del repo
+(`docker compose up -d postgres`) y usar la `DATABASE_URL` de ejemplo.
+
+### Frontend (shell en el navegador)
+
+La capa `src/ui` es framework-agnostic (sin React). El shell del navegador vive
+en `src/ui/index.html`, compone los componentes desde `src/ui/browser/entry.ts`
+y se sirve con un dev server propio que resuelve el bundle ESM en memoria con
+`Bun.build`, por lo que no requiere paso de compilacion ni pipeline de Vite.
+
+```bash
+bun run ui:dev
+```
+
+Salidas del proceso:
+
+```txt
+UI shell on http://127.0.0.1:3001
+Proxying /v1/* -> http://127.0.0.1:3000
+```
+
+Abre `http://127.0.0.1:3001` en el navegador. El dev server:
+
+- Sirve `src/ui/index.html` en `/` (y `/index.html`).
+- Sirve el bundle del navegador en `/entry.js` (Tailwind se carga por CDN en el HTML).
+- Hace proxy de `/v1/*` hacia el backend (`UI_API_TARGET`, por defecto
+  `http://127.0.0.1:3000`) para que UI y API compartan origen.
+- Responde `404` para cualquier otra ruta.
+
+Variables de entorno opcionales:
+
+| Variable | Valor por defecto | Descripcion |
+| --- | --- | --- |
+| `UI_HOST` | `127.0.0.1` | Interfaz de escucha del dev server |
+| `UI_PORT` | `3001` | Puerto del dev server |
+| `UI_API_TARGET` | `http://127.0.0.1:3000` | Backend destino del proxy `/v1/*` |
+
+Por defecto el shell usa un catalogo demo en memoria
+(`src/ui/browser/demo-search-client.ts`), por lo que la UI funciona sola, sin
+backend, LLM, Qdrant ni variables de entorno. Para usar el backend real, deja
+`bun run dev` corriendo en `:3000` y apunta `UI_API_TARGET` a esa URL; para
+inyectar otro cliente de busqueda, pasa `searchClient` a `mountApp`.
+
+### Antes de abrir cambios
 
 ```bash
 bun run spec:check
@@ -174,19 +312,9 @@ autenticacion. Si esta configurado, `POST /v1/items` y `GET /v1/items/{itemId}`
 requieren `Authorization: Bearer <token>`. Los endpoints `/v1/health/live`,
 `/v1/health/ready`, `/openapi.json` y `/docs` permanecen publicos.
 
-```env
-SERVICE_TOKEN=local-dev-token
-```
-
-```bash
-curl -X POST http://127.0.0.1:3000/v1/items \
-  -H "Authorization: Bearer local-dev-token" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"demo","metadata":{}}'
-```
-
 Si falta la credencial, la API responde `SVC-CORE-2001`; si el token es
-incorrecto, responde `SVC-CORE-2002`.
+incorrecto, responde `SVC-CORE-2002`. Ver un ejemplo de `.env` y `curl` en la
+seccion [Ejecutar en localhost](#ejecutar-en-localhost).
 
 ## Docker
 
@@ -205,7 +333,5 @@ sincroniza `PORT`, `EXPOSE` y la configuración del servicio en Render.
 
 No hay `render.yaml`: la rama, variables, health check y ajustes del Dashboard
 viven en Render. No agregues un Blueprint parcial al servicio existente sin
-capturar primero todos sus valores actuales. `vercel.json` y el guardado
-`VERCEL` en `src/index.ts` se conservan por compatibilidad anterior, no como
-configuración del despliegue activo. Consulta
+capturar primero todos sus valores actuales. Consulta
 `docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuración.

@@ -1,4 +1,3 @@
-import process from "node:process";
 import Fastify from "fastify";
 import { env } from "./config/env.js";
 import { buildServer } from "./http/server.js";
@@ -26,11 +25,8 @@ const app = await buildServer({
 	...(paymentRuntime === undefined ? {} : { payments: paymentRuntime }),
 });
 
-// Vercel imports this module and serves the exported Fastify instance as a
-// Function; binding a port is only meaningful for local processes
-// (`bun run dev` / `bun run start`) and Docker.
-if (!process.env.VERCEL) {
-	await app.listen({ host: env.HOST, port: env.PORT });
-}
+// Local processes (`bun run dev` / `bun run start`) and the Docker image bind
+// the port; the exported instance stays available for tests.
+await app.listen({ host: env.HOST, port: env.PORT });
 
 export default app;

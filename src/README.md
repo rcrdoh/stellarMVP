@@ -11,6 +11,5 @@ Codigo fuente del servicio. La entrada del proceso vive en `index.ts`; `http/ser
   README para persistencia e invariantes.
 - `integrations/agents/`: checkpointer MongoDB, adaptadores Jev/Groq y factory
   de composición inyectable para Shopping Agent.
-- `index.ts`: entrada del proceso. Construye la app, exporta la instancia como
-  `export default` (requerido por la Function de Vercel) y solo llama a
-  `app.listen` fuera de Vercel.
+- `index.ts`: entrada del proceso. Construye la app, escucha en `HOST`/`PORT` y
+  exporta la instancia como `export default` para pruebas.

@@ -24,12 +24,9 @@ servicio, el puerto configurado en Render, las variables de entorno y los
 health checks del Dashboard no quedan declarados como infraestructura en este
 repo.
 
-El repositorio conserva `vercel.json` y compatibilidad de entrypoint para
-Vercel, resultado del intento de despliegue anterior. Esa configuracion es
-heredada y no describe el destino de produccion vigente. Los errores historicos
-de Vercel (patrones `functions`, salida estatica `public` y resolucion de tipos)
-explican la compatibilidad restante, pero no deben dirigir cambios del
-despliegue activo en Render.
+El repositorio versiona el `Dockerfile` como unico artefacto de despliegue. No
+se conservan configuraciones de plataformas serverless previas; el destino
+activo es Render.
 
 ## Decision
 
@@ -54,14 +51,11 @@ Usar Bun, TypeScript estricto, Fastify y Zod como base:
   para servicios web, y permite configurar el puerto; si se cambia el puerto
   del contenedor, hay que mantener sincronizados `PORT`, `EXPOSE` y Render.
 - `src/index.ts` importa Fastify directamente, construye la app, la exporta
-  como default y llama `app.listen(...)` en ejecucion normal. La condicion
-  `VERCEL` conserva compatibilidad con el despliegue serverless anterior; en
-  Render la variable no debe definirse para que el proceso abra su puerto.
+  como default y llama `app.listen(...)` en ejecucion normal. El proceso abre su
+  puerto en Render y en local.
 - `tsconfig.json` mantiene `types: []`; `tsconfig.check.json` habilita los tipos
   completos de Bun para `check-types`. Las APIs Bun utilizadas por produccion
   tienen declaraciones locales en los modulos que las usan.
-- `vercel.json` es una configuracion heredada. No es la fuente de verdad del
-  despliegue Render ni debe cambiarse como solucion a fallos en Render.
 
 ### Proteccion de la configuracion de Render
 
@@ -72,24 +66,18 @@ health check o el enrutamiento. En particular:
 
 1. No retirar ni cambiar el runtime Docker, `CMD`, `HOST`, `PORT` o `EXPOSE` sin
    verificar el contrato del servicio configurado en Render.
-2. No establecer `VERCEL` en Render: `src/index.ts` lo usa para omitir el bind
-   del puerto en Vercel.
-3. No agregar un `render.yaml` parcial para un servicio existente: Render
+2. No agregar un `render.yaml` parcial para un servicio existente: Render
    advierte que un Blueprint debe incluir la configuracion actual del recurso,
    pues los valores omitidos pueden divergir del Dashboard. Si se decide
    versionar la infraestructura, primero exportar/verificar todos los ajustes
    actuales y mantenerlos sincronizados.
-4. Antes de aceptar cambios de despliegue, ejecutar las comprobaciones locales
+3. Antes de aceptar cambios de despliegue, ejecutar las comprobaciones locales
    y validar un deploy Preview de Render o un deploy equivalente que no reemplace
    el servicio activo. Un build local no sustituye la validacion en Render.
-5. `vercel.json` y el soporte de Vercel se consideran legado hasta que una ADR
-   nueva restablezca formalmente Vercel como destino activo.
 
 Referencias primarias: [Docker en Render](https://render.com/docs/docker),
-[Web Services de Render y binding de puerto](https://render.com/docs/web-services),
-[Blueprint YAML de Render](https://render.com/docs/blueprint-spec) y
-[Fastify en Vercel](https://vercel.com/docs/frameworks/backend/fastify) para el
-soporte heredado.
+[Web Services de Render y binding de puerto](https://render.com/docs/web-services)
+y [Blueprint YAML de Render](https://render.com/docs/blueprint-spec).
 
 ## Consequences
 
