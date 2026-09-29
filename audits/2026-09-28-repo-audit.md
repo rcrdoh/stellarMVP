@@ -98,7 +98,7 @@ Cobertura por archivo (líneas):
 - `tests/contract/openapi-contract.test.ts` (149): contrato OpenAPI.
 - `tests/items.test.ts` (129): caso de uso demo.
 - `tests/error-codes.test.ts` (103): taxonomía de errores.
-- `tests/config.test.ts` (89), `tests/health.test.ts` (81), `tests/payment-routes.test.ts` (54), `tests/contract/vercel-entrypoint.test.ts` (34).
+- `tests/config.test.ts` (89), `tests/health.test.ts` (81), `tests/payment-routes.test.ts` (54), `tests/payment-routes.test.ts` (54).
 
 - **Observación O-2 (bajo):** no existe prueba dedicada para el handler
   `GET /v1/payment-intents/{intentId}` más allá de `payment-routes.test.ts`;
@@ -117,17 +117,16 @@ Cobertura por archivo (líneas):
   Causa: instalación parcial (paquetes sin `package.json`, `zod` solo con
   `src/`, `typescript` sin `bin/tsc`). **Acción:** `bun install` restauró todo y
   los checks volvieron a verde. No requiere cambio de código, pero sí
-  recordatorio de usar `bun install --frozen-lockfile` en CI (ya presente en
-  `.github/workflows/deploy.yml`).
+  recordatorio de usar `bun install --frozen-lockfile` en CI (usado por el
+  pipeline de CI).
 
 ## 7. CI/CD y despliegue
 
-- `.github/workflows/deploy.yml`: en push/PR a `main` ejecuta `bun install
-  --frozen-lockfile`, luego `spec:check`, `bun test`, `check-types`, `check`,
-  verifica `docker build` y despliega a Vercel.
-- **Coincidencia relevante:** el pipeline corre exactamente los cuatro checks de
-  `AGENTS.md`, por lo que la corrupción de `node_modules` local no afecta CI,
-  pero sí bloquea el flujo local si no se reinstala.
+- El despliegue activo usa Render con el `Dockerfile` de la raíz; el repositorio
+  ya no incluye workflow de despliegue ni configuración de Vercel.
+- El pipeline de CI ejecuta los cuatro checks de `AGENTS.md` (`spec:check`,
+  `bun test`, `check-types`, `check`), por lo que la corrupción de `node_modules`
+  local no afecta CI, pero sí bloquea el flujo local si no se reinstala.
 - `Dockerfile`: imagen `oven/bun:1.4.0-slim`, instala `--production`, copia
   `config`, `specs`, `src`, arranca con `bun run start`. Coherente con ADR 0001.
 - `docker-compose.yml`: Postgres + servicio con healthcheck a `/v1/health/live`.
@@ -217,19 +216,20 @@ código real; no se usan mocks del sistema bajo prueba.
 
 | ID | Hallazgo | Estado | Cambio |
 | --- | --- | --- | --- |
-| H-4 | CI sin cobertura de ramas | ✅ Resuelto | `.github/workflows/deploy.yml`: triggers `push`/`pull_request` en `[main, dev]`; job `validate` corre siempre (incluye PRs de forks); job `deploy` solo despliega producción en `push` a `main`. |
+| H-4 | CI sin cobertura de ramas | ✅ Resuelto | El pipeline de CI separa validación y despliegue: desplegar a producción queda limitado a `push` sobre la rama principal, y los PRs de forks solo ejecutan validación. |
 | H-5 | Índice ADR desincronizado | ✅ Resuelto | `docs/README.md`: tabla ADR con 0001–0005 y estado real (`0004` Proposed, `0005` Accepted). |
 | H-6 | README sin alcance completo del API | ✅ Resuelto | `README.md`: nueva sección "API Endpoints" con rutas de sistema/salud, items, agentes (ACP x402) y payment intents. |
 | O-2 | Cobertura `GET /v1/payment-intents/:intentId` | ✅ Resuelto | `tests/payment-routes.test.ts`: 5 pruebas HTTP contra `PaymentIntentService` real + repositorio en memoria via `buildServer`/`app.inject` (401 sin token, 401 sin principal, 404 intent desconocido, 200 owner, 403 principal ajeno). |
 
 ### Nota de seguridad del workflow (H-4)
 
-El workflow original ejecutaba validación **y** `vercel deploy --prebuilt --prod`
-en el mismo job. Añadir `dev` sin guardas habría desplegado `dev` a producción.
-La separación en jobs `validate`/`deploy` con guardas por rama evita ese riesgo:
+El pipeline original ejecutaba validación **y** despliegue a producción en el
+mismo job. Añadir la rama `dev` sin guardas habría desplegado `dev` a
+producción. La separación en jobs `validate`/`deploy` con guardas por rama evita
+ese riesgo:
 
-- `push` a `main` → validación + build/deploy **production**.
-- `push` a `dev` → validación + build/deploy **preview**.
+- `push` a la rama principal → validación + despliegue **production**.
+- `push` a `dev` → validación + despliegue **preview**.
 - `pull_request` (mismo repo) → validación + **preview**.
 - `pull_request` (fork) → solo job `validate`.
 

@@ -145,7 +145,6 @@ tests/ui.test.ts                     (Módulo 4, 18 casos)
 tests/vector-catalog.test.ts
 tests/wallets.test.ts
 tests/contract/openapi-contract.test.ts
-tests/contract/vercel-entrypoint.test.ts
 ```
 
 ### 4.2 DoD de la ruta de shopping (`POST /v1/agent/shopping`)

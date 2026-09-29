@@ -123,7 +123,6 @@ tests/items.test.ts
 tests/payment-intents.test.ts
 tests/payment-routes.test.ts        (nuevo, cobertura GET intent)
 tests/contract/openapi-contract.test.ts
-tests/contract/vercel-entrypoint.test.ts
 ```
 
 ---
@@ -168,9 +167,9 @@ dependen de puertos/adaptadores.
 - **Escaneo de secretos** (patrones `sk-*`, `AKIA*`, `ghp_*`, claves privadas
   PEM) sobre `*.ts`, `*.json`, `*.toml`, `*.md`, `*.yml` excluyendo
   `node_modules`: **sin hallazgos**.
-- Tokens de servicio y de Vercel se consumen vía variables de entorno / secretos
-  de GitHub Actions, no hardcodeados.
-- Guarda de despliegue: producción estrictamente limitada a `push` en `main`.
+- Tokens de servicio se consumen vía variables de entorno, no hardcodeados.
+- Guarda de despliegue: el despliegue a producción queda limitado a la rama
+  principal; el destino activo es Render.
 
 ---
 

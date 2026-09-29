@@ -159,7 +159,6 @@ tests/supabase-migrations.test.ts     (nuevo — migraciones + checkpointer)
 tests/vector-catalog.test.ts          (nuevo — adaptador de catálogo vectorial)
 tests/wallets.test.ts                 (nuevo M3 — wallet Web3, 13 tests)
 tests/contract/openapi-contract.test.ts
-tests/contract/vercel-entrypoint.test.ts
 ```
 
 ---
