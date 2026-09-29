@@ -16,3 +16,5 @@ Informes de auditoría del repositorio y del estado del eSDD.
 | 2026-09-28 | [2026-09-28-module6-vector-catalog-status.md](2026-09-28-module6-vector-catalog-status.md) | Módulo 6: motor de recuperación vectorial y extracción de catálogo (Audit L2) |
 | 2026-09-28 | [2026-09-28-module7-ranking-status.md](2026-09-28-module7-ranking-status.md) | Módulo 7: normalización, ranking de productos y handoff a base de datos (Audit L2) |
 | 2026-09-28 | [2026-09-28-module8-payment-firewall-status.md](2026-09-28-module8-payment-firewall-status.md) | Módulo 8: Payment Agent, scopes de gasto y firewall de checkout x402 (Audit H2) |
+| 2026-09-28 | [2026-09-28-repo-audit-mechanical-vs-decision.md](2026-09-28-repo-audit-mechanical-vs-decision.md) | Auditoría de estado con hallazgos separados en buckets mecánico / decisión |
+| 2026-09-29 | [2026-09-29-frontend-ui-ux-audit.md](2026-09-29-frontend-ui-ux-audit.md) | Frontend completo (`src/ui/`, composition root de navegador, dev server) y flujo UI/UX de compra |
