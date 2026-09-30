@@ -90,6 +90,11 @@ Variables relevantes del frontend:
   real; se sustituyen en el bundle en **build time**, por lo que cambiar cualquiera
   exige reconstruir la imagen.
 
+> Nota: el SPA se compila en runtime con `bun-plugin-tailwind`, por eso
+> `bun-plugin-tailwind` y `tailwindcss` viven en `dependencies` (no en
+> `devDependencies`). Si se mueven a `devDependencies`, `bun install --production`
+> los elimina y el contenedor falla al arrancar el frontend.
+
 Probar:
 
 ```bash
