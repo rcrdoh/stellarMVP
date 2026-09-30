@@ -7,9 +7,9 @@ import { join } from "node:path";
  * with `Bun.build` + `bun-plugin-tailwind`, serves the SPA shell, and proxies
  * `/v1/*` to the backend so one origin serves both the page and the API.
  *
- * Runs locally (`bun run react:dev`) and as a Render web service
- * (`bun run start:web`). The backend runs separately (`bun run dev` or the API
- * image from the root `Dockerfile`).
+ * Runs locally (`bun run react:dev`) and in production via `bun run start:web`,
+ * which the single-container supervisor `scripts/start-all.ts` (`bun run
+ * start:all`, the former `Dockerfile.web` role) launches next to the API.
  *
  * Env:
  * - `HOST` (default 127.0.0.1) / `PORT`: used in production (Render injects

@@ -1,38 +1,55 @@
 # Render Blueprint for stellarmvp.
 #
-# Two Docker web services from the same repository:
-#   - stellarmvp-api  : Fastify API (`./Dockerfile`, `bun run start`)
-#   - stellarmvp-web  : React ACP x402 SPA + `/v1/*` reverse proxy
-#                       (`./Dockerfile.web`, `bun run start:web`)
+# A single Docker web service from this repository runs both the Fastify API
+# and the React ACP x402 SPA (which proxies `/v1/*` to the API) inside one
+# container via `bun run start:all` (see `./Dockerfile`).
 #
-# The browser only talks to the frontend origin; the frontend proxies `/v1/*`
-# to the API, so UI and API share an origin and no CORS is needed.
+# The API binds an internal port (`API_PORT`, default 3000, localhost only) and
+# the web server binds Render's injected `PORT`, so the public origin serves the
+# page and the API on the same host and no CORS is needed.
 #
 # Deploy from the Render Dashboard: New > Blueprint > select this repo, or
 # `render blueprint launch`. Values marked `sync: false` are NOT stored in git;
 # set them in the Dashboard after the first deploy.
 
 services:
-  # --- Service 1: API (Fastify) -------------------------------------------
   - type: web
-    name: stellarmvp-api
+    name: stellarmvp
     runtime: docker
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /v1/health/live
+    healthCheckPath: /
     autoDeploy: true
     envVars:
       - key: APP_ENV
         value: prod
+      - key: NODE_ENV
+        value: production
       - key: HOST
         value: 0.0.0.0
-      # Render injects PORT at runtime; the app reads it from the environment.
+      # Render injects PORT for the public web server; the API uses API_PORT.
+      - key: API_PORT
+        value: "3000"
+      - key: API_HOST
+        value: 127.0.0.1
       - key: LOG_LEVEL
         value: info
       - key: CONFIG_FILE
         value: config/settings.toml
+
+      # "0" uses the real HTTP clients; anything else keeps mock mode.
+      - key: REACT_MOCK_MODE
+        value: "0"
+      # Inlined into the bundle at build time: changing these requires a
+      # redeploy of this service.
+      - key: REACT_AGENT_TOKEN
+        sync: false
+      - key: REACT_SERVICE_TOKEN
+        sync: false
+      - key: REACT_PRINCIPAL_ID
+        sync: false
 
       # --- Optional integrations (disabled by default) --------------------
       - key: DATABASE_ENABLED
@@ -90,38 +107,3 @@ services:
         sync: false
       - key: STELLAR_MAX_FEE_PER_OPERATION_STROOPS
         value: "100000"
-
-  # --- Service 2: Frontend React ACP x402 (SPA + /v1 proxy) ---------------
-  - type: web
-    name: stellarmvp-web
-    runtime: docker
-    plan: free
-    region: oregon
-    dockerfilePath: ./Dockerfile.web
-    dockerContext: .
-    healthCheckPath: /
-    autoDeploy: true
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: APP_ENV
-        value: prod
-      - key: HOST
-        value: 0.0.0.0
-      # Points the proxy at the API service by name; resolves at deploy time.
-      - key: UI_API_TARGET
-        fromService:
-          type: web
-          name: stellarmvp-api
-          envVarKey: RENDER_EXTERNAL_URL
-      # "0" uses the real HTTP clients; anything else keeps mock mode.
-      - key: REACT_MOCK_MODE
-        value: "0"
-      # Inlined into the bundle at build time: changing these requires a
-      # redeploy of this service.
-      - key: REACT_AGENT_TOKEN
-        sync: false
-      - key: REACT_SERVICE_TOKEN
-        sync: false
-      - key: REACT_PRINCIPAL_ID
-        sync: false

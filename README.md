@@ -35,10 +35,9 @@ supabase/       Migraciones SQL (esquema de comercio y RLS por agente)
 scripts/        Automatizacion SDD local
 tests/          Pruebas de contrato y servicios
 AGENTS.md       Reglas estrictas para agentes de codigo
-Dockerfile      Imagen de produccion de la API
-Dockerfile.web  Imagen de produccion del frontend React (Render)
+Dockerfile      Imagen unica de produccion (API + frontend React)
 docker-compose.yml Orquestacion local de contenedor
-render.yaml     Blueprint de Render (API + frontend)
+render.yaml     Blueprint de Render (un servicio: API + frontend)
 ```
 
 ## Comandos
@@ -49,6 +48,7 @@ bun run dev
 bun run ui:dev
 bun run react:dev
 bun run start:web
+bun run start:all
 bun run build
 bun run spec:check
 bun test
@@ -56,7 +56,7 @@ bun run check
 bun run check-types
 ```
 
-`bun run build` emite a `dist/` via `tsconfig.build.json`. `bun run dev` recarga en caliente sobre `src/` (Bun `--watch`); `bun run start` ejecuta el build compilado (`bun run dist/index.js`), que es el mismo comando que usa la imagen de produccion. `bun run ui:dev` sirve la UI del navegador legacy (ver [Frontend shell en el navegador](#frontend-shell-en-el-navegador)); `bun run react:dev` sirve el frontend React ACP x402 (ver [Frontend React ACP x402](#frontend-react-acp-x402)); `bun run start:web` sirve ese mismo frontend en modo produccion (`NODE_ENV=production`, bundle minificado, bind a `HOST`/`PORT`) para el despliegue en [Render](#render).
+`bun run build` emite a `dist/` via `tsconfig.build.json`. `bun run dev` recarga en caliente sobre `src/` (Bun `--watch`); `bun run start` ejecuta el build compilado (`bun run dist/index.js`), que es el mismo comando que usa la imagen de produccion. `bun run ui:dev` sirve la UI del navegador legacy (ver [Frontend shell en el navegador](#frontend-shell-en-el-navegador)); `bun run react:dev` sirve el frontend React ACP x402 (ver [Frontend React ACP x402](#frontend-react-acp-x402)); `bun run start:web` sirve ese mismo frontend en modo produccion (`NODE_ENV=production`, bundle minificado, bind a `HOST`/`PORT`); `bun run start:all` levanta **API + frontend en un mismo proceso supervisor** (`scripts/start-all.ts`), que es el entrypoint de la imagen unica de [Render](#render).
 
 ## Ejecutar en localhost
 
@@ -229,7 +229,9 @@ inyectar otro cliente de busqueda, pasa `searchClient` a `mountApp`.
 El frontend nuevo vive en `src/react-app` (React 19 + Tailwind v4, sin Vite ni
 bundler externo) y se sirve con un dev server propio sobre `Bun.build` +
 `bun-plugin-tailwind`. Ademas del SPA sirve `/main.js` y `/styles.css`, y hace
-proxy de `/v1/*` hacia el backend para que pagina y API compartan origen.
+proxy de `/v1/*` hacia el backend para que pagina y API compartan origen. En
+produccion/Render no se arranca solo: `bun run start:all` lo levanta junto a la
+API dentro del mismo contenedor (ver [Render](#render)).
 
 ```bash
 bun install
@@ -384,28 +386,35 @@ seccion [Ejecutar en localhost](#ejecutar-en-localhost).
 
 Manual: `docs/docker.md`.
 
-API (raiz `Dockerfile`):
+El repositorio usa **una sola imagen** (`Dockerfile`) con API + frontend React
+ACP x402 en el mismo contenedor:
+
+- API interna en `127.0.0.1:$API_PORT` (por defecto `3000`).
+- Frontend publico en `0.0.0.0:$PORT`, con proxy de `/v1/*` hacia la API.
+
+Con Compose:
 
 ```bash
 docker compose up --build -d
 ```
 
-Frontend React (raiz `Dockerfile.web`, ver [Render](#render)):
+La imagen directa (el comando de arranque es `bun run start:all`, ya fijado como
+`CMD`):
 
 ```bash
-docker build -f Dockerfile.web -t stellarmvp-web .
-docker run --rm -p 8010:3000 -e UI_API_TARGET=http://127.0.0.1:3000 stellarmvp-web
+docker build -t stellarmvp .
+docker run --rm -p 8010:3000 stellarmvp
 ```
 
 ## Render
 
-El despliegue activo usa Render. La API y el frontend React ACP x402 se
-despliegan como **dos servicios web Docker** del mismo repositorio; el frontend
-hace de proxy de `/v1/*` hacia la API, de modo que el navegador trabaja con un
-solo origen.
+El despliegue activo usa Render con **un unico servicio web Docker** del mismo
+repositorio: el contenedor sirve la SPA y la API Fastify, y hace proxy de `/v1/*`
+hacia la API interna, de modo que el navegador trabaja con un solo origen (sin
+CORS ni URLs cruzadas).
 
-Ambos servicios se describen en `render.yaml` (Blueprint), de modo que se
-crean juntos desde el mismo repositorio con las mismas instrucciones:
+El servicio se describe en `render.yaml` (Blueprint), de modo que se crea desde
+el mismo repositorio con las mismas instrucciones:
 
 ```bash
 # En el Dashboard: New > Blueprint > selecciona rcrdoh/stellarMVP
@@ -413,68 +422,45 @@ crean juntos desde el mismo repositorio con las mismas instrucciones:
 render blueprint launch
 ```
 
-El Blueprint crea `stellarmvp-api` y `stellarmvp-web`, y enlaza el proxy del
-frontend a la API con `UI_API_TARGET` = `RENDER_EXTERNAL_URL` de la API
-(`fromService`), por lo que no hay que copiar URLs a mano. Las variables
-marcadas `sync: false` (tokens y claves) no se guardan en git: defínelas en el
-Dashboard tras el primer deploy.
+El Blueprint crea `stellarmvp` (runtime Docker, `dockerfilePath: ./Dockerfile`,
+health check `/`). Render inyecta `PORT` para el servidor web publico; la API usa
+`API_PORT` ligada a `127.0.0.1`, asi que ambos conviven en el mismo contenedor.
+Las variables marcadas `sync: false` (tokens y claves) no se guardan en git:
+defínelas en el Dashboard tras el primer deploy.
 
 > Nota: si ya existe un servicio creado a mano en el Dashboard, no apliques el
 > Blueprint encima sin capturar antes sus valores actuales.
 
-### Servicio 1 — API (obligatorio)
+### Servicio — API + Frontend (obligatorio)
 
 - Tipo: **Web Service** → **Docker**.
 - `Dockerfile Path`: `./Dockerfile`.
-- El contenedor escucha en `0.0.0.0:3000` (variables `HOST`/`PORT` del
-  Dockerfile). Render inyecta `PORT`; si lo cambias, sincroniza `PORT`, `EXPOSE`
-  y el puerto del servicio.
-- Health check path: `/v1/health/live`.
+- Arranque: `bun run start:all` (lo fija el `CMD` del Dockerfile); el servidor web
+  escucha en `0.0.0.0:$PORT`, que Render inyecta.
+- Health check path: `/`.
 - Variables: las de la seccion
   [Ejecutar en localhost](#ejecutar-en-localhost) que necesites. Sin variables
   externas el servicio arranca con las capas opcionales deshabilitadas.
+- Frontend embebido: `REACT_MOCK_MODE=0` usa los clientes HTTP reales;
+  `REACT_AGENT_TOKEN`, `REACT_SERVICE_TOKEN` y `REACT_PRINCIPAL_ID` se sustituyen
+  en el bundle en **build time**, por lo que cambiarlos exige redeploy.
 - Autoriza el acceso a la base de datos y a Redis (si aplica) desde la region de
   Render; en Postgres gestionado usa la `DATABASE_URL` con SSL.
-
-### Servicio 2 — Frontend React ACP x402
-
-- Tipo: **Web Service** → **Docker**.
-- `Dockerfile Path`: `./Dockerfile.web`.
-- El contenedor sirve el SPA (`/`, `/main.js`, `/styles.css`) y hace proxy de
-  `/v1/*` al backend. Escucha en `0.0.0.0:$PORT` (Render lo inyecta).
-- Variables:
-
-| Variable | Valor | Descripcion |
-| --- | --- | --- |
-| `UI_API_TARGET` | URL publica de la API | Backend destino del proxy `/v1/*` |
-| `REACT_MOCK_MODE` | `0` | Usa los clientes HTTP reales |
-| `REACT_AGENT_TOKEN` | token de agente (si aplica) | Auth para `/v1/agent/*` |
-| `REACT_SERVICE_TOKEN` | service token (si aplica) | Auth para `/v1/items` y pagos |
-| `REACT_PRINCIPAL_ID` | id del principal (si aplica) | Cabecera `X-Principal-Id` |
-
-Sin `UI_API_TARGET` el frontend cae a `http://127.0.0.1:3000`, que no existe en
-Render: define siempre la URL publica de la API. Los `REACT_*` se sustituyen en
-el bundle en **build time**, por lo que cambiarlos exige redeploy del servicio de
-frontend.
-
-Con `REACT_MOCK_MODE` sin definir (o distinto de `0`) el frontend arranca en modo
-mock (blocker B1 en `docs/react-app-recon.md`) y funciona sin API.
 
 ### Verificacion
 
 ```bash
-curl -fsS https://<api>.onrender.com/v1/health/live
-curl -fsS -o /dev/null -w "index:%{http_code}\n" https://<web>.onrender.com/
-curl -fsS -o /dev/null -w "js:%{http_code}\n"    https://<web>.onrender.com/main.js
-curl -fsS -o /dev/null -w "css:%{http_code}\n"   https://<web>.onrender.com/styles.css
+curl -fsS -o /dev/null -w "index:%{http_code}\n"  https://<app>.onrender.com/
+curl -fsS -o /dev/null -w "js:%{http_code}\n"     https://<app>.onrender.com/main.js
+curl -fsS -o /dev/null -w "css:%{http_code}\n"    https://<app>.onrender.com/styles.css
+curl -fsS https://<app>.onrender.com/v1/health/live
 ```
 
 ### Notas
 
-La topologia declarativa (dos servicios, Dockerfiles, health checks y
-variables) vive en `render.yaml`. No apliques un Blueprint parcial al servicio
-existente sin capturar primero todos sus valores actuales. `vercel.json` se
-elimino junto con la configuracion de Vercel; el guardado `VERCEL` en
-`src/index.ts` se conserva solo por compatibilidad anterior, no como despliegue
-activo. Consulta `docs/adr/0001-bun-fastify-framework.md` antes de cambiar la
-configuracion.
+La topologia declarativa (servicio unico, Dockerfile, health check y variables)
+vive en `render.yaml`. No apliques un Blueprint parcial al servicio existente sin
+capturar primero todos sus valores actuales. `vercel.json` se elimino junto con
+la configuracion de Vercel; el guardado `VERCEL` en `src/index.ts` se conserva
+solo por compatibilidad anterior, no como despliegue activo. Consulta
+`docs/adr/0001-bun-fastify-framework.md` antes de cambiar la configuracion.
