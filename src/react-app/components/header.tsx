@@ -27,7 +27,7 @@ export function Header({
 							ChapaTuOferta
 						</p>
 						<p className="font-mono text-[10px] uppercase tracking-widest text-muted">
-							ACP x402 · Stellar
+							MVP
 						</p>
 					</div>
 					{false && (
